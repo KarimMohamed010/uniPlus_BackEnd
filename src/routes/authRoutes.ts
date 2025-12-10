@@ -2,25 +2,20 @@ import { Router } from "express";
 import { validateBody } from "../middleware/validation.ts";
 import { signUp, signIn } from "../controllers/authController.ts";
 import { asyncHandler } from "../utils/wrappers.ts";
-import { z } from "zod";
+import { minLength, z } from "zod";
+import { insertUserSchema, selectUserSchema } from "../db/schema.ts";
 
 const router = Router();
 
-const signUpSchema = z.object({
-  email: z.string().email("Invalid email"),
-  fname: z.string().min(1, "First name is required"),
-  lname: z.string().min(1, "Last name is required"),
-  userPassword: z.string().min(6, "Password must be at least 6 characters"),
-  bio: z.string().optional(),
-  imgUrl: z.string().optional(),
+const signUpSchema = insertUserSchema.extend({
+  email: z.email("Invalid email"),
 });
 
-const signInSchema = z.object({
-  email: z.string().email("Invalid email"),
-  userPassword: z.string().min(1, "Password is required"),
+const signInSchema = selectUserSchema.extend({
+  email: z.email("Invalid email"),
 });
 
-router.post("/sign-up", validateBody(signUpSchema), asyncHandler(signUp));
+router.post("/sign-up", validateBody(signUpSchema), signUp);
 router.post("/sign-in", validateBody(signInSchema), asyncHandler(signIn));
 
 export default router;

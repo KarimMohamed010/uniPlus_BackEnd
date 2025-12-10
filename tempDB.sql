@@ -106,13 +106,12 @@ create table PostMedia(
 );
 
 create table Comments(
-    id int not null GENERATED ALWAYS AS IDENTITY,
+    id int not null GENERATED ALWAYS AS IDENTITY primary key,
 	author int ,
     content text,
     post_id int not null,
     issued_at TIMESTAMP with time zone DEFAULT now() ,
 	parent_id int,
-	primary key (post_id ),
     foreign key(post_id) REFERENCES Posts
 	on update cascade 
 	on delete cascade ,

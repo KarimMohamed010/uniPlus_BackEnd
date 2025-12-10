@@ -9,8 +9,7 @@ import {
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-
+import { createInsertSchema,createSelectSchema } from "drizzle-zod";
 export const users = pgTable("users", {
   id: integer()
     .primaryKey()
@@ -22,12 +21,12 @@ export const users = pgTable("users", {
       maxValue: 2147483647,
       cache: 1,
     }),
-  email: varchar({ length: 50 }).notNull(),
+  email: varchar({ length: 255 }).notNull().unique(),
   fname: varchar({ length: 50 }).notNull(),
   lname: varchar({ length: 50 }).notNull(),
   bio: text(),
-  imgUrl: varchar("img_url", { length: 200 }),
-  userPassword: varchar("user_password", { length: 20 }).notNull(),
+  imgUrl: varchar("img_url", { length: 255 }),
+  userPassword: varchar("user_password", { length: 255 }).notNull(),
 });
 
 export const students = pgTable(
@@ -65,16 +64,14 @@ export const admins = pgTable(
 export const teams = pgTable(
   "teams",
   {
-    id: integer()
-      .primaryKey()
-      .generatedAlwaysAsIdentity({
-        name: "teams_id_seq",
-        startWith: 1,
-        increment: 1,
-        minValue: 1,
-        maxValue: 2147483647,
-        cache: 1,
-      }),
+    id: integer().primaryKey().generatedAlwaysAsIdentity({
+      name: "teams_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 2147483647,
+      cache: 1,
+    }),
     name: varchar({ length: 50 }).notNull(),
     description: text(),
     leaderId: integer("leader_id"),
@@ -102,18 +99,16 @@ export const teams = pgTable(
 export const events = pgTable(
   "events",
   {
-    id: integer()
-      .primaryKey()
-      .generatedAlwaysAsIdentity({
-        name: "events_id_seq",
-        startWith: 1,
-        increment: 1,
-        minValue: 1,
-        maxValue: 2147483647,
-        cache: 1,
-      }),
+    id: integer().primaryKey().generatedAlwaysAsIdentity({
+      name: "events_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 2147483647,
+      cache: 1,
+    }),
     title: varchar({ length: 50 }).notNull(),
-    discription: text(),
+    description: text(),
     type: varchar({ length: 50 }),
     issuedAt: timestamp("issued_at", {
       withTimezone: true,
@@ -122,11 +117,11 @@ export const events = pgTable(
     startTime: timestamp("start_time", {
       withTimezone: true,
       mode: "string",
-    }).defaultNow(),
+    }),
     endTime: timestamp("end_time", {
       withTimezone: true,
       mode: "string",
-    }).defaultNow(),
+    }),
     teamId: integer("team_id"),
     respondedBy: integer("responded_by"),
     acceptanceStatus: text("acceptance_status"),
@@ -152,16 +147,14 @@ export const events = pgTable(
 export const rides = pgTable(
   "rides",
   {
-    id: integer()
-      .primaryKey()
-      .generatedAlwaysAsIdentity({
-        name: "rides_id_seq",
-        startWith: 1,
-        increment: 1,
-        minValue: 1,
-        maxValue: 2147483647,
-        cache: 1,
-      }),
+    id: integer().primaryKey().generatedAlwaysAsIdentity({
+      name: "rides_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 2147483647,
+      cache: 1,
+    }),
     toLoc: text("to_loc"),
     fromLoc: text("from_loc"),
     price: integer(),
@@ -185,16 +178,14 @@ export const rides = pgTable(
 );
 
 export const posts = pgTable("posts", {
-  id: integer()
-    .primaryKey()
-    .generatedAlwaysAsIdentity({
-      name: "posts_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 2147483647,
-      cache: 1,
-    }),
+  id: integer().primaryKey().generatedAlwaysAsIdentity({
+    name: "posts_id_seq",
+    startWith: 1,
+    increment: 1,
+    minValue: 1,
+    maxValue: 2147483647,
+    cache: 1,
+  }),
   description: text(),
   issuedAt: timestamp("issued_at", {
     withTimezone: true,
@@ -205,7 +196,7 @@ export const posts = pgTable("posts", {
 export const comments = pgTable(
   "comments",
   {
-    id: integer().generatedAlwaysAsIdentity({
+    id: integer().primaryKey().generatedAlwaysAsIdentity({
       name: "comments_id_seq",
       startWith: 1,
       increment: 1,
@@ -215,7 +206,7 @@ export const comments = pgTable(
     }),
     author: integer(),
     content: text(),
-    postId: integer("post_id").primaryKey().notNull(),
+    postId: integer("post_id").notNull(),
     issuedAt: timestamp("issued_at", {
       withTimezone: true,
       mode: "string",
@@ -272,16 +263,14 @@ export const takePlace = pgTable(
 );
 
 export const rooms = pgTable("rooms", {
-  id: integer()
-    .primaryKey()
-    .generatedAlwaysAsIdentity({
-      name: "rooms_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 2147483647,
-      cache: 1,
-    }),
+  id: integer().primaryKey().generatedAlwaysAsIdentity({
+    name: "rooms_id_seq",
+    startWith: 1,
+    increment: 1,
+    minValue: 1,
+    maxValue: 2147483647,
+    cache: 1,
+  }),
   name: varchar({ length: 50 }).notNull(),
   capacity: integer().notNull(),
   location: text(),
@@ -297,7 +286,7 @@ export const messages = pgTable(
     }).defaultNow(),
     content: text(),
     senderId: integer("sender_id"),
-    recieverId: integer("reciever_id"),
+    receiverId: integer("receiver_id"),
   },
   (table) => [
     foreignKey({
@@ -308,9 +297,9 @@ export const messages = pgTable(
       .onUpdate("cascade")
       .onDelete("cascade"),
     foreignKey({
-      columns: [table.recieverId],
+      columns: [table.receiverId],
       foreignColumns: [users.id],
-      name: "messages_reciever_id_fkey",
+      name: "messages_receiver_id_fkey",
     })
       .onUpdate("cascade")
       .onDelete("cascade"),
@@ -318,16 +307,14 @@ export const messages = pgTable(
 );
 
 export const speakers = pgTable("speakers", {
-  id: integer()
-    .primaryKey()
-    .generatedAlwaysAsIdentity({
-      name: "speakers_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 2147483647,
-      cache: 1,
-    }),
+  id: integer().primaryKey().generatedAlwaysAsIdentity({
+    name: "speakers_id_seq",
+    startWith: 1,
+    increment: 1,
+    minValue: 1,
+    maxValue: 2147483647,
+    cache: 1,
+  }),
   name: varchar({ length: 50 }).notNull(),
   bio: text(),
   fname: varchar({ length: 50 }),
@@ -396,7 +383,7 @@ export const speak = pgTable(
   ]
 );
 
-export const subscibe = pgTable(
+export const subscribe = pgTable(
   "subscibe",
   {
     userId: integer("user_id").notNull(),
@@ -406,20 +393,20 @@ export const subscibe = pgTable(
     foreignKey({
       columns: [table.teamId],
       foreignColumns: [teams.id],
-      name: "subscibe_team_id_fkey",
+      name: "subscribe_team_id_fkey",
     })
       .onUpdate("cascade")
       .onDelete("cascade"),
     foreignKey({
       columns: [table.userId],
       foreignColumns: [users.id],
-      name: "subscibe_user_id_fkey",
+      name: "subscribe_user_id_fkey",
     })
       .onUpdate("cascade")
       .onDelete("cascade"),
     primaryKey({
       columns: [table.userId, table.teamId],
-      name: "subscibe_pkey",
+      name: "subscribe_pkey",
     }),
   ]
 );
@@ -567,7 +554,7 @@ export const badges = pgTable(
     studentId: integer("student_id").notNull(),
     teamId: integer("team_id").notNull(),
     type: text("type_").notNull(),
-    pionts: integer().default(0),
+    points: integer().default(0),
     expDate: timestamp("exp_date", {
       withTimezone: true,
       mode: "string",
@@ -707,10 +694,10 @@ export type NewSpeak = typeof speak.$inferInsert;
 export const insertSpeakSchema = createInsertSchema(speak);
 export const selectSpeakSchema = createSelectSchema(speak);
 
-export type Subscibe = typeof subscibe.$inferSelect;
-export type NewSubscibe = typeof subscibe.$inferInsert;
-export const insertSubscibeSchema = createInsertSchema(subscibe);
-export const selectSubscibeSchema = createSelectSchema(subscibe);
+export type Subscibe = typeof subscribe.$inferSelect;
+export type NewSubscibe = typeof subscribe.$inferInsert;
+export const insertSubscibeSchema = createInsertSchema(subscribe);
+export const selectSubscibeSchema = createSelectSchema(subscribe);
 
 export type JoinRide = typeof joinRide.$inferSelect;
 export type NewJoinRide = typeof joinRide.$inferInsert;
@@ -744,7 +731,7 @@ export const selectBadgeSchema = createSelectSchema(badges);
 
 export type TicketsAndFeedback = typeof ticketsAndFeedback.$inferSelect;
 export type NewTicketsAndFeedback = typeof ticketsAndFeedback.$inferInsert;
-export const insertTicketsAndFeedbackSchema = createInsertSchema(ticketsAndFeedback);
-export const selectTicketsAndFeedbackSchema = createSelectSchema(ticketsAndFeedback);
-
-
+export const insertTicketsAndFeedbackSchema =
+  createInsertSchema(ticketsAndFeedback);
+export const selectTicketsAndFeedbackSchema =
+  createSelectSchema(ticketsAndFeedback);

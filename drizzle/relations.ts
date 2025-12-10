@@ -43,12 +43,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   students: many(students),
   admins: many(admins),
   comments: many(comments),
-  messages_senderId: many(messages, {
-    relationName: "messages_senderId_users_id",
-  }),
-  messages_recieverId: many(messages, {
-    relationName: "messages_recieverId_users_id",
-  }),
+  messages: many(messages),
   createPosts: many(createPost),
   subscibes: many(subscibe),
 }));
@@ -143,15 +138,9 @@ export const roomsRelations = relations(rooms, ({ many }) => ({
 }));
 
 export const messagesRelations = relations(messages, ({ one }) => ({
-  user_senderId: one(users, {
+  user: one(users, {
     fields: [messages.senderId],
     references: [users.id],
-    relationName: "messages_senderId_users_id",
-  }),
-  user_recieverId: one(users, {
-    fields: [messages.recieverId],
-    references: [users.id],
-    relationName: "messages_recieverId_users_id",
   }),
 }));
 

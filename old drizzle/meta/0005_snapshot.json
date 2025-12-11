@@ -1,6 +1,6 @@
 {
-  "id": "e9864626-0926-4d0e-8dc9-0a256e630439",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "78ba7955-1492-4df1-9c32-587b2800689f",
+  "prevId": "9aa1f30e-5ec0-49c1-b100-a640a106a877",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -350,7 +350,7 @@
             "parent_id"
           ],
           "columnsTo": [
-            "id"
+            "post_id"
           ],
           "onDelete": "cascade",
           "onUpdate": "cascade"

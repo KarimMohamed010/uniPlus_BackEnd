@@ -1,0 +1,1 @@
+ALTER TABLE "speakers" ALTER COLUMN "email" SET DATA TYPE varchar(255);

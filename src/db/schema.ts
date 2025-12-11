@@ -229,7 +229,7 @@ export const comments = pgTable(
       .onDelete("set null"),
     foreignKey({
       columns: [table.parentId],
-      foreignColumns: [table.postId],
+      foreignColumns: [table.id],
       name: "comments_parent_id_fkey",
     })
       .onUpdate("cascade")
@@ -319,7 +319,7 @@ export const speakers = pgTable("speakers", {
   fname: varchar({ length: 50 }),
   lname: varchar({ length: 50 }),
   contact: integer(),
-  email: varchar({ length: 50 }).notNull(),
+  email: varchar({ length: 255 }).notNull(),
 });
 
 export const createPost = pgTable(

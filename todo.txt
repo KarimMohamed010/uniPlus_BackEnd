@@ -1,0 +1,9 @@
+addadmin
+teamengagment reports
+warning
+toggle status needs isActive col to let admin enable / disable
+
+publish event is an endpoint ??
+event pricing
+cv files ... where to upload ? and ui ?
+anything messages 

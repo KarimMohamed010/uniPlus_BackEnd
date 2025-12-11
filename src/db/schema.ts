@@ -9,18 +9,16 @@ import {
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { createInsertSchema,createSelectSchema } from "drizzle-zod";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 export const users = pgTable("users", {
-  id: integer()
-    .primaryKey()
-    .generatedAlwaysAsIdentity({
-      name: "users_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 2147483647,
-      cache: 1,
-    }),
+  id: integer().primaryKey().generatedAlwaysAsIdentity({
+    name: "users_id_seq",
+    startWith: 1,
+    increment: 1,
+    minValue: 1,
+    maxValue: 2147483647,
+    cache: 1,
+  }),
   email: varchar({ length: 255 }).notNull().unique(),
   fname: varchar({ length: 50 }).notNull(),
   lname: varchar({ length: 50 }).notNull(),
@@ -125,6 +123,7 @@ export const events = pgTable(
     teamId: integer("team_id"),
     respondedBy: integer("responded_by"),
     acceptanceStatus: text("acceptance_status"),
+    basePrice: integer("base_price"),
   },
   (table) => [
     foreignKey({
@@ -384,7 +383,7 @@ export const speak = pgTable(
 );
 
 export const subscribe = pgTable(
-  "subscibe",
+  "subscribe",
   {
     userId: integer("user_id").notNull(),
     teamId: integer("team_id").notNull(),
@@ -694,10 +693,10 @@ export type NewSpeak = typeof speak.$inferInsert;
 export const insertSpeakSchema = createInsertSchema(speak);
 export const selectSpeakSchema = createSelectSchema(speak);
 
-export type Subscibe = typeof subscribe.$inferSelect;
-export type NewSubscibe = typeof subscribe.$inferInsert;
-export const insertSubscibeSchema = createInsertSchema(subscribe);
-export const selectSubscibeSchema = createSelectSchema(subscribe);
+export type Subscribe = typeof subscribe.$inferSelect;
+export type NewSubscribe = typeof subscribe.$inferInsert;
+export const insertSubscribeSchema = createInsertSchema(subscribe);
+export const selectSubscribeSchema = createSelectSchema(subscribe);
 
 export type JoinRide = typeof joinRide.$inferSelect;
 export type NewJoinRide = typeof joinRide.$inferInsert;

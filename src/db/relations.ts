@@ -14,7 +14,7 @@ import {
   createPost,
   speak,
   speakers,
-  subscibe,
+  subscribe,
   joinRide,
   reports,
   belongTo,
@@ -50,7 +50,7 @@ export const usersRelations = relations(users, ({ many }) => ({
     relationName: "messages_recieverId_users_id",
   }),
   createPosts: many(createPost),
-  subscibes: many(subscibe),
+  subscribes: many(subscribe),
 }));
 
 export const adminsRelations = relations(admins, ({ one, many }) => ({
@@ -73,7 +73,7 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
   }),
   events: many(events),
   createPosts: many(createPost),
-  subscibes: many(subscibe),
+  subscribes: many(subscribe),
   belongTos: many(belongTo),
   applies: many(apply),
   badges: many(badges),
@@ -149,7 +149,7 @@ export const messagesRelations = relations(messages, ({ one }) => ({
     relationName: "messages_senderId_users_id",
   }),
   user_recieverId: one(users, {
-    fields: [messages.recieverId],
+    fields: [messages.receiverId],
     references: [users.id],
     relationName: "messages_recieverId_users_id",
   }),
@@ -185,13 +185,13 @@ export const speakersRelations = relations(speakers, ({ many }) => ({
   speaks: many(speak),
 }));
 
-export const subscibeRelations = relations(subscibe, ({ one }) => ({
+export const subscribeRelations = relations(subscribe, ({ one }) => ({
   team: one(teams, {
-    fields: [subscibe.teamId],
+    fields: [subscribe.teamId],
     references: [teams.id],
   }),
   user: one(users, {
-    fields: [subscibe.userId],
+    fields: [subscribe.userId],
     references: [users.id],
   }),
 }));

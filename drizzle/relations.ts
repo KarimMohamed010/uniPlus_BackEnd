@@ -14,7 +14,7 @@ import {
   createPost,
   speak,
   speakers,
-  subscibe,
+  subscribe,
   joinRide,
   reports,
   belongTo,
@@ -45,7 +45,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   comments: many(comments),
   messages: many(messages),
   createPosts: many(createPost),
-  subscibes: many(subscibe),
+  subscribes: many(subscribe),
 }));
 
 export const adminsRelations = relations(admins, ({ one, many }) => ({
@@ -68,7 +68,7 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
   }),
   events: many(events),
   createPosts: many(createPost),
-  subscibes: many(subscibe),
+  subscribes: many(subscribe),
   belongTos: many(belongTo),
   applies: many(apply),
   badges: many(badges),
@@ -174,13 +174,13 @@ export const speakersRelations = relations(speakers, ({ many }) => ({
   speaks: many(speak),
 }));
 
-export const subscibeRelations = relations(subscibe, ({ one }) => ({
+export const subscribeRelations = relations(subscribe, ({ one }) => ({
   team: one(teams, {
-    fields: [subscibe.teamId],
+    fields: [subscribe.teamId],
     references: [teams.id],
   }),
   user: one(users, {
-    fields: [subscibe.userId],
+    fields: [subscribe.userId],
     references: [users.id],
   }),
 }));

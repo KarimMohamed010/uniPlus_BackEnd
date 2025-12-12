@@ -1,0 +1,286 @@
+import { Server, Socket } from "socket.io";
+import { Server as HTTPServer } from "http";
+import db from "../db/connection.ts";
+import { messages, users } from "../db/schema.ts";
+import { eq, or, and } from "drizzle-orm";
+import { verify } from "crypto";
+import { verifyToken } from "../utils/jwt.ts";
+import type { jwtPayLoad } from "../utils/jwt.ts";
+
+// Extend Socket interface to include userId
+interface AuthenticatedSocket extends Socket {
+  userId?: number;
+}
+
+// Store connected users: userId -> socketId
+const connectedUsers = new Map<number, string>();
+
+export function initializeSocket(httpServer: HTTPServer) {
+  const io = new Server(httpServer, {
+    cors: {
+      origin: ["https://my-frontend.com", "http://localhost:5173"],
+      credentials: true,
+    },
+  });
+
+  // Middleware to authenticate socket connection
+  io.use( async (socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+      return next(new Error("Authentication error"));
+    }
+    // Token verification happens in the client by sending it in handshake
+    try{
+      const payload  = await verifyToken(token as string);
+      (socket as any).userId = payload.userId;
+
+    }
+    catch(err){
+      console.error("Socket authentication failed:", err);
+      return ;
+    }
+    next();
+  });
+
+  io.on("connection", (socket: any) => {
+    console.log("User connected:", socket.id, "userId:", socket.userId);
+
+    if (socket.userId) {
+      connectedUsers.set(socket.userId, socket.id);
+      io.emit("user_online", {
+        userId: socket.userId,
+        status: "online",
+      });
+    }
+
+    // ===== 1-on-1 Chat Events =====
+
+    /**
+     * Event: send_message
+     * Sends a message to a specific user (1-on-1 chat)
+     */
+    socket.on(
+      "send_message",
+      async (data: { receiverId: number; content: string }, callback) => {
+        try {
+          const senderId = socket.userId;
+          if (!senderId) {
+            callback({ error: "Not authenticated" });
+            return;
+          }
+
+          const msgId = Date.now();
+
+          // Save message to database
+          await db.insert(messages).values({
+            msgId,
+            senderId,
+            receiverId: data.receiverId,
+            content: data.content,
+            sendAt: new Date().toISOString(),
+          });
+
+          // Emit message to receiver if online
+          const receiverSocketId = connectedUsers.get(data.receiverId);
+          if (receiverSocketId) {
+            io.to(receiverSocketId).emit("receive_message", {
+              msgId,
+              senderId,
+              senderName: socket.handshake.auth.senderName || "Unknown",
+              content: data.content,
+              sendAt: new Date().toISOString(),
+              isOnline: true,
+            });
+          }
+
+          // Acknowledge to sender
+          callback({
+            success: true,
+            msgId,
+            sendAt: new Date().toISOString(),
+          });
+        } catch (error) {
+          console.error("Error sending message:", error);
+          callback({ error: "Failed to send message" });
+        }
+      }
+    );
+
+    /**
+     * Event: typing
+     * Notify receiver when sender is typing
+     */
+    socket.on("typing", (data: { receiverId: number; isTyping: boolean }) => {
+      const receiverSocketId = connectedUsers.get(data.receiverId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("user_typing", {
+          senderId: socket.userId,
+          isTyping: data.isTyping,
+        });
+      }
+    });
+
+    /**
+     * Event: mark_as_read
+     * Mark messages as read
+     */
+    socket.on(
+      "mark_as_read",
+      async (data: { senderId: number; messageIds: number[] }) => {
+        try {
+          // You can add a 'read' column to messages table if needed
+          // For now, just emit acknowledgment
+          const senderSocketId = connectedUsers.get(data.senderId);
+          if (senderSocketId) {
+            io.to(senderSocketId).emit("messages_read", {
+              readBy: socket.userId,
+              messageIds: data.messageIds,
+            });
+          }
+        } catch (error) {
+          console.error("Error marking as read:", error);
+        }
+      }
+    );
+
+    /**
+     * Event: get_chat_history
+     * Fetch message history between two users
+     */
+    socket.on(
+      "get_chat_history",
+      async (data: { otherUserId: number; limit?: number }, callback) => {
+        try {
+          const userId = socket.userId;
+          if (!userId) {
+            callback({ error: "Not authenticated" });
+            return;
+          }
+
+          const limit = data.limit || 50;
+
+          // Fetch messages between current user and other user
+          const chatHistory = await db
+            .select()
+            .from(messages)
+            .where(
+              or(
+                and(
+                  eq(messages.senderId, userId),
+                  eq(messages.receiverId, data.otherUserId)
+                ),
+                and(
+                  eq(messages.senderId, data.otherUserId),
+                  eq(messages.receiverId, userId)
+                )
+              )
+            )
+            .limit(limit);
+
+          callback({
+            success: true,
+            messages: chatHistory.reverse(),
+          });
+        } catch (error) {
+          console.error("Error fetching chat history:", error);
+          callback({ error: "Failed to fetch chat history" });
+        }
+      }
+    );
+
+    // ===== Group/Team Chat Events (Optional) =====
+
+    /**
+     * Event: join_team_chat
+     * Join a team's chat room
+     */
+    socket.on("join_team_chat", (data: { teamId: number }) => {
+      const roomName = `team_${data.teamId}`;
+      socket.join(roomName);
+      console.log(`User ${socket.userId} joined ${roomName}`);
+
+      // Notify team members
+      io.to(roomName).emit("user_joined_team", {
+        userId: socket.userId,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    /**
+     * Event: send_team_message
+     * Send message to team chat
+     */
+    socket.on(
+      "send_team_message",
+      async (data: { teamId: number; content: string }, callback) => {
+        try {
+          const senderId = socket.userId;
+          if (!senderId) {
+            callback({ error: "Not authenticated" });
+            return;
+          }
+
+          const msgId = Date.now();
+          const roomName = `team_${data.teamId}`;
+
+          // Save team message to database
+          // You may want to create a separate 'team_messages' table
+          await db.insert(messages).values({
+            msgId,
+            senderId,
+            receiverId: null, // null for team messages
+            content: `[TEAM_${data.teamId}] ${data.content}`,
+            sendAt: new Date().toISOString(),
+          });
+
+          // Broadcast to team
+          io.to(roomName).emit("receive_team_message", {
+            msgId,
+            senderId,
+            senderName: socket.handshake.auth.senderName || "Unknown",
+            content: data.content,
+            teamId: data.teamId,
+            sendAt: new Date().toISOString(),
+          });
+
+          callback({ success: true, msgId });
+        } catch (error) {
+          console.error("Error sending team message:", error);
+          callback({ error: "Failed to send message" });
+        }
+      }
+    );
+
+    /**
+     * Event: leave_team_chat
+     * Leave a team's chat room
+     */
+    socket.on("leave_team_chat", (data: { teamId: number }) => {
+      const roomName = `team_${data.teamId}`;
+      socket.leave(roomName);
+      console.log(`User ${socket.userId} left ${roomName}`);
+
+      io.to(roomName).emit("user_left_team", {
+        userId: socket.userId,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    // ===== Disconnect Event =====
+
+    socket.on("disconnect", () => {
+      if (socket.userId) {
+        connectedUsers.delete(socket.userId);
+        io.emit("user_offline", {
+          userId: socket.userId,
+          status: "offline",
+        });
+      }
+      console.log("User disconnected:", socket.id);
+    });
+  });
+
+  return io;
+}
+
+export { connectedUsers };

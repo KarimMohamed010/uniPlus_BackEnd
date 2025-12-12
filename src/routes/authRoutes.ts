@@ -7,11 +7,11 @@ import { insertUserSchema, selectUserSchema } from "../db/schema.ts";
 
 const router = Router();
 
-const signUpSchema = insertUserSchema.extend({
+export const signUpSchema = insertUserSchema.extend({
   email: z.email("Invalid email"),
 });
 
-const signInSchema = selectUserSchema.extend({
+export const signInSchema = selectUserSchema.extend({
   email: z.email("Invalid email"),
 
 });

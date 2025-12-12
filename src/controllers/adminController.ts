@@ -107,7 +107,9 @@ export async function addAdmin(req: Request<any, any, NewUser>, res: Response) {
 
     await db.insert(admins).values({ id: user.id });
 
-   
+    if (!user) {
+      return res.status(500).json({ error: "Failed to create admin user" });
+    }
 
     return res.status(201).json({
       message: "Admin Created Successfully",
@@ -121,7 +123,56 @@ export async function addAdmin(req: Request<any, any, NewUser>, res: Response) {
           team: [],
         },
       },
-      
+    });
+  } catch (error) {
+    console.error("Error adding admin:", error);
+
+    // Check if email already exists
+    if ((error as any).code === "23505") {
+      return res.status(409).json({ error: "Email already exists" });
+    }
+
+    res.status(500).json({ error: "Failed to add admin" });
+  }
+}
+
+// Update admin details
+export async function updateAdmin(
+  req: Request<any, any, NewUser>,
+  res: Response
+) {
+  try {
+    let userData = req.body;
+    if (req.body.userPassword) {
+      const hashedPass = await hashPassword(userData.userPassword);
+      userData.userPassword = hashedPass;
+    }
+    // update admin
+    const [user] = await db
+      .update(users)
+      .set({ ...userData })
+      .where(eq(users.id, parseInt(req.params.adminId)))
+      .returning({
+        id: users.id,
+        email: users.email,
+        fname: users.fname,
+        lname: users.lname,
+      });
+    if (!user) {
+      return res.status(500).json({ error: "Failed to update admin user" });
+    }
+    return res.status(201).json({
+      message: "Admin Created Successfully",
+      user: {
+        id: user.id,
+        email: user.email,
+        fname: user.fname,
+        lname: user.lname,
+        roles: {
+          global: "admin",
+          team: [],
+        },
+      },
     });
   } catch (error) {
     console.error("Error adding admin:", error);
@@ -151,7 +202,9 @@ export async function getEventParticipationReport(
       .where(eq(admins.id, userId));
 
     if (adminRecord.length === 0) {
-      return res.status(403).json({ error: "Only admins can view participation reports" });
+      return res
+        .status(403)
+        .json({ error: "Only admins can view participation reports" });
     }
 
     const report = await db

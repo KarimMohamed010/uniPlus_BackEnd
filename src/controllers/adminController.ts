@@ -9,6 +9,9 @@ import {
   ticketsAndFeedback,
 } from "../db/schema.ts";
 import { eq, and, sql } from "drizzle-orm";
+import type { NewUser } from "../db/schema.ts";
+import { hashPassword } from "../utils/password.ts";
+import type { AuthenticatedRequest } from "../middleware/auth.ts";
 
 // 1. Approve or reject events
 export async function approveEvent(
@@ -81,33 +84,52 @@ export async function approveTeam(
 }
 
 // 2. Add new admin to the system
-export async function addAdmin(
-  req: Request<any, any, { userId: number }>,
-  res: Response
-) {
+export async function addAdmin(req: Request<any, any, NewUser>, res: Response) {
   try {
-    const { userId } = req.body;
-    const adminId = (req as any).user.id;
+    const userData = req.body;
 
-    // Check if user exists
-    const user = await db.select().from(users).where(eq(users.id, userId));
+    const hashedPass = await hashPassword(userData.userPassword);
 
-    if (user.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    // Create user as student
+    const [user] = await db
+      .insert(users)
+      .values({
+        ...userData,
+        userPassword: hashedPass,
+      })
+      .returning({
+        id: users.id,
+        email: users.email,
+        fname: users.fname,
+        lname: users.lname,
+      });
 
-    // Add as admin
-    await db.insert(admins).values({ id: userId });
+    await db.insert(admins).values({ id: user.id });
+
+   
 
     return res.status(201).json({
-      message: "Admin added successfully",
-      userId,
+      message: "Admin Created Successfully",
+      user: {
+        id: user.id,
+        email: user.email,
+        fname: user.fname,
+        lname: user.lname,
+        roles: {
+          global: "admin",
+          team: [],
+        },
+      },
+      
     });
   } catch (error) {
     console.error("Error adding admin:", error);
+
+    // Check if email already exists
     if ((error as any).code === "23505") {
-      return res.status(409).json({ error: "User is already an admin" });
+      return res.status(409).json({ error: "Email already exists" });
     }
+
     res.status(500).json({ error: "Failed to add admin" });
   }
 }

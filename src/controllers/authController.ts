@@ -7,10 +7,8 @@ import { users, students, admins, belongTo } from "../db/schema.ts";
 import type { NewUser, User } from "../db/schema.ts";
 import type { Request, Response } from "express";
 import { eq } from "drizzle-orm";
+import { hashPassword } from "../utils/password.ts";
 
-async function hashPassword(password) {
-  return await bycrypt.hash(password, env.BCRYPT_ROUNDS);
-}
 
 export async function signUp(req: Request<any, any, NewUser>, res: Response) {
   try {

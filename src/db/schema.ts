@@ -19,6 +19,7 @@ export const users = pgTable("users", {
     maxValue: 2147483647,
     cache: 1,
   }),
+  username: varchar({ length: 255 }).notNull().unique(),
   email: varchar({ length: 255 }).notNull().unique(),
   fname: varchar({ length: 50 }).notNull(),
   lname: varchar({ length: 50 }).notNull(),

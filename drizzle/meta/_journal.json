@@ -15,6 +15,13 @@
       "when": 1765516516433,
       "tag": "0001_brief_rocket_raccoon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765560166339,
+      "tag": "0002_striped_eternity",
+      "breakpoints": true
     }
   ]
 }

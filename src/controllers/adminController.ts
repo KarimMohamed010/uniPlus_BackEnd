@@ -273,7 +273,7 @@ export async function issueWarning(
     // Send warning message to user
     const msgId = Date.now();
     await db.insert(messages).values({
-      msgId,
+      msgId : messageId,
       senderId: adminId,
       receiverId: userId,
       content: `WARNING: ${warningMessage}`,

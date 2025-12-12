@@ -32,12 +32,12 @@ export function initializeSocket(httpServer: HTTPServer) {
     // Token verification happens in the client by sending it in handshake
     try{
       const payload  = await verifyToken(token as string);
-      (socket as any).userId = payload.userId;
+      (socket as any).userId = payload.id;
 
     }
     catch(err){
       console.error("Socket authentication failed:", err);
-      return ;
+      return next(new Error("Authentication failed"));
     }
     next();
   });
@@ -69,16 +69,16 @@ export function initializeSocket(httpServer: HTTPServer) {
             return;
           }
 
-          const msgId = Date.now();
 
           // Save message to database
-          await db.insert(messages).values({
-            msgId,
+          const [inserted] = await db.insert(messages).values({
             senderId,
             receiverId: data.receiverId,
             content: data.content,
             sendAt: new Date().toISOString(),
-          });
+          }).returning({ msgId: messages.msgId });
+
+          const msgId = inserted.msgId;
 
           // Emit message to receiver if online
           const receiverSocketId = connectedUsers.get(data.receiverId);
@@ -220,18 +220,17 @@ export function initializeSocket(httpServer: HTTPServer) {
             return;
           }
 
-          const msgId = Date.now();
           const roomName = `team_${data.teamId}`;
 
           // Save team message to database
-          // You may want to create a separate 'team_messages' table
-          await db.insert(messages).values({
-            msgId,
+          const [inserted] = await db.insert(messages).values({
             senderId,
             receiverId: null, // null for team messages
             content: `[TEAM_${data.teamId}] ${data.content}`,
             sendAt: new Date().toISOString(),
-          });
+          }).returning({ msgId: messages.msgId });
+
+          const msgId = inserted.msgId;
 
           // Broadcast to team
           io.to(roomName).emit("receive_team_message", {

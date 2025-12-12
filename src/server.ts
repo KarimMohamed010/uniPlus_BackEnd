@@ -3,19 +3,29 @@ import helmet from "helmet";
 import morgan from "morgan";
 import { isTestEnv } from "../env.ts";
 import authRoutes from "./routes/authRoutes.ts";
+import eventsRoutes from "./routes/eventsRoutes.ts";
+import postsRoutes from "./routes/postsRoutes.ts";
+import commentsRoutes from "./routes/commentsRoutes.ts";
+import ticketsRoutes from "./routes/ticketsRoutes.ts";
+import applicationsRoutes from "./routes/applicationsRoutes.ts";
+import messagesRoutes from "./routes/messagesRoutes.ts";
+import studentsRoutes from "./routes/studentsRoutes.ts";
+import adminsRoutes from "./routes/adminsRoutes.ts";
+import organizerRoutes from "./routes/organizerRoutes.ts";
+import teamsRoutes from "./routes/teamsRoutes.ts";
 import { authenticate } from "./middleware/auth.ts";
 import cors from "cors";
 
 const app = express();
 
-app.use(
-  cors({
-    origin: ["https://my-frontend.com", "http://localhost:5173"],
-    credentials: true,
-    methods: ["GET", "POST","PATCH", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+// app.use(
+//   cors({
+//     origin: ["https://my-frontend.com", "http://localhost:5173"],
+//     credentials: true,
+//     methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
+//     allowedHeaders: ["Content-Type", "Authorization"],
+//   })
+// );
 
 app.use(helmet());
 app.use(express.json());
@@ -36,9 +46,16 @@ app.get("/health", (req, res) => {
 // Protected routes middleware - all routes after this require authentication
 app.use("/api", authenticate);
 
-// Your other protected routes go here
-// app.use("/api/users", usersRoutes);
-// app.use("/api/teams", teamsRoutes);
-// etc.
+// Resource-based RESTful routes
+app.use("/api/events", eventsRoutes);
+app.use("/api/posts", postsRoutes);
+app.use("/api/comments", commentsRoutes);
+app.use("/api/tickets", ticketsRoutes);
+app.use("/api/applications", applicationsRoutes);
+app.use("/api/messages", messagesRoutes);
+app.use("/api/students", studentsRoutes);
+app.use("/api/admin", adminsRoutes);
+app.use("/api/organizer", organizerRoutes);
+app.use("/api/teams", teamsRoutes);
 
 export default app;

@@ -278,7 +278,14 @@ export const rooms = pgTable("rooms", {
 export const messages = pgTable(
   "messages",
   {
-    msgId: integer("msg_id").primaryKey().notNull(),
+    msgId: integer("msg_id").primaryKey().generatedAlwaysAsIdentity({
+      name: "messages_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 2147483647,
+      cache: 1,
+    }),
     sendAt: timestamp("send_at", {
       withTimezone: true,
       mode: "string",

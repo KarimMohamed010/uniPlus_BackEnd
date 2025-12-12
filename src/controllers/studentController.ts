@@ -201,10 +201,8 @@ export async function sendMessage(
   try {
     const { receiverId, content } = req.body;
     const senderId = (req as any).user.id;
-    const msgId = Date.now();
 
     await db.insert(messages).values({
-      msgId,
       senderId,
       receiverId,
       content,

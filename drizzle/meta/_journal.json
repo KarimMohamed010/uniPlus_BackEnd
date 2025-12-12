@@ -8,6 +8,13 @@
       "when": 1765476687509,
       "tag": "0000_premium_mandroid",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1765516516433,
+      "tag": "0001_brief_rocket_raccoon",
+      "breakpoints": true
     }
   ]
 }

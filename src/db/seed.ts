@@ -5,7 +5,7 @@ import env from "../../env.ts";
 
 async function main() {
   await reset(db, schema);
-  await seed(db, schema);
+  // await seed(db, schema);
 }
 
 main();

@@ -14,39 +14,40 @@ import { hashPassword } from "../utils/password.ts";
 import type { AuthenticatedRequest } from "../middleware/auth.ts";
 
 // 1. Approve or reject events
-export async function approveEvent(
-  req: Request<{ eventId: string }, any, { acceptanceStatus: string }>,
-  res: Response
-) {
-  try {
-    const { eventId } = req.params;
-    const { acceptanceStatus } = req.body;
-    const adminId = (req as any).user.id; //auth middleware will always attach the payload to the req
+//NOTE: el ai by3oly tetshal 3shan da elmafrod yt3ml fy el event w hwa mawgod
+// export async function approveEvent(
+//   req: Request<{ eventId: string }, any, { acceptanceStatus: string }>,
+//   res: Response
+// ) {
+//   try {
+//     const { eventId } = req.params;
+//     const { acceptanceStatus } = req.body;
+//     const adminId = (req as any).user.id; //auth middleware will always attach the payload to the req
 
-    if (!["approved", "rejected"].includes(acceptanceStatus)) {
-      return res.status(400).json({
-        error: "Invalid status. Must be 'approved' or 'rejected'",
-      });
-    }
+//     if (!["approved", "rejected"].includes(acceptanceStatus)) {
+//       return res.status(400).json({
+//         error: "Invalid status. Must be 'approved' or 'rejected'",
+//       });
+//     }
 
-    const [event] = await db
-      .update(events)
-      .set({
-        acceptanceStatus,
-        respondedBy: adminId,
-      })
-      .where(eq(events.id, parseInt(eventId)))
-      .returning();
+//     const [event] = await db
+//       .update(events)
+//       .set({
+//         acceptanceStatus,
+//         respondedBy: adminId,
+//       })
+//       .where(eq(events.id, parseInt(eventId)))
+//       .returning();
 
-    return res.status(200).json({
-      message: `Event ${acceptanceStatus}`,
-      event,
-    });
-  } catch (error) {
-    console.error("Error approving event:", error);
-    res.status(500).json({ error: "Failed to approve event" });
-  }
-}
+//     return res.status(200).json({
+//       message: `Event ${acceptanceStatus}`,
+//       event,
+//     });
+//   } catch (error) {
+//     console.error("Error approving event:", error);
+//     res.status(500).json({ error: "Failed to approve event" });
+//   }
+// }
 
 // 1. Approve or reject teams
 export async function approveTeam(
@@ -141,6 +142,17 @@ export async function getEventParticipationReport(
 ) {
   try {
     const { eventId } = req.params;
+    const userId = (req as any).user.id;
+
+    // Check if user is admin
+    const adminRecord = await db
+      .select()
+      .from(admins)
+      .where(eq(admins.id, userId));
+
+    if (adminRecord.length === 0) {
+      return res.status(403).json({ error: "Only admins can view participation reports" });
+    }
 
     const report = await db
       .select({

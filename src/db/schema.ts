@@ -7,6 +7,7 @@ import {
   timestamp,
   primaryKey,
   check,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
@@ -287,13 +288,14 @@ export const messages = pgTable(
       maxValue: 2147483647,
       cache: 1,
     }),
-    sendAt: timestamp("send_at", {
+    sentAt: timestamp("sent_at", {
       withTimezone: true,
       mode: "string",
     }).defaultNow(),
     content: text(),
     senderId: integer("sender_id"),
     receiverId: integer("receiver_id"),
+    seen : boolean().default(false),
   },
   (table) => [
     foreignKey({

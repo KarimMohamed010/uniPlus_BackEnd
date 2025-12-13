@@ -67,12 +67,7 @@ router.post(
   studentController.rateEvent
 );
 
-// 6. Send message to another student
-router.post(
-  "/messages/send",
-  validateBody(sendMessageSchema),
-  studentController.sendMessage
-);
+
 
 // 7. Get my ticket for an event
 router.get("/tickets/:ticketId", studentController.getMyTicket);
@@ -86,7 +81,6 @@ router.get("/events/upcoming", studentController.getMyUpcomingRegisteredEvents);
 // 10. Get my attended events
 router.get("/events/attended", studentController.getMyAttendedRegisteredEvents);
 
-// 11. Get notifications/messages
-router.get("/notifications", studentController.getNotifications);
+
 
 export default router;

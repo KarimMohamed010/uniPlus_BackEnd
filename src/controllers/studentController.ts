@@ -193,30 +193,6 @@ export async function rateEvent(
   }
 }
 
-// 5. Participate in chat (send message)
-export async function sendMessage(
-  req: Request<any, any, { receiverId: number; content: string }>,
-  res: Response
-) {
-  try {
-    const { receiverId, content } = req.body;
-    const senderId = (req as any).user.id;
-
-    await db.insert(messages).values({
-      senderId,
-      receiverId,
-      content,
-      sendAt: new Date().toISOString(),
-    });
-
-    return res.status(201).json({
-      message: "Message sent successfully",
-    });
-  } catch (error) {
-    console.error("Error sending message:", error);
-    res.status(500).json({ error: "Failed to send message" });
-  }
-}
 
 //====BY OMAR=====
 // 12. Get my ticket for an event
@@ -442,25 +418,7 @@ export async function getMyAttendedRegisteredEvents(req: Request, res: Response)
 // 6. Comment on blog
 //    DONE IN COMMENT CONTROLLER
 
-// 7. Get notifications and warnings
-export async function getNotifications(req: Request, res: Response) {
-  try {
-    const studentId = (req as any).user.id;
 
-    const notifications = await db
-      .select()
-      .from(messages)
-      .where(eq(messages.receiverId, studentId));
-
-    return res.status(200).json({
-      message: "Notifications retrieved",
-      notifications,
-    });
-  } catch (error) {
-    console.error("Error retrieving notifications:", error);
-    res.status(500).json({ error: "Failed to retrieve notifications" });
-  }
-}
 
 // 8. Manage personal profile
 export async function updateProfile(

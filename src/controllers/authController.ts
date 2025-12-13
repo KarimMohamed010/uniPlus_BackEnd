@@ -9,6 +9,7 @@ import type { Request, Response } from "express";
 import { eq } from "drizzle-orm";
 import { hashPassword } from "../utils/password.ts";
 import { DrizzleQueryError } from "drizzle-orm";
+import type { errorMonitor } from "events";
 
 export async function signUp(req: Request<any, any, NewUser>, res: Response) {
   try {
@@ -62,13 +63,13 @@ export async function signUp(req: Request<any, any, NewUser>, res: Response) {
     // Check if email already exists
     if ((error as any).cause.code === "23505") {
       if (/email/i.test(error.cause.constraint)) {
-        return res.status(409).json({ message: "Email already exists" });
+        return res.status(409).json({ error: "Email already exists" });
       }
       if (/username/i.test(error.cause.constraint)) {
-        return res.status(409).json({ message: "Username already exists" });
+        return res.status(409).json({ error: "Username already exists" });
       }
     }
-      res.status(500).json({ message: "Failed to create user" });
+      res.status(500).json({ error: "Failed to create user" });
     }
   }
   

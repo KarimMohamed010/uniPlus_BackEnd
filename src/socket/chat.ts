@@ -24,18 +24,16 @@ export function initializeSocket(httpServer: HTTPServer) {
   });
 
   // Middleware to authenticate socket connection
-  io.use( async (socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) {
       return next(new Error("Authentication error"));
     }
     // Token verification happens in the client by sending it in handshake
-    try{
-      const payload  = await verifyToken(token as string);
+    try {
+      const payload = await verifyToken(token as string);
       (socket as any).userId = payload.id;
-
-    }
-    catch(err){
+    } catch (err) {
       console.error("Socket authentication failed:", err);
       return next(new Error("Authentication failed"));
     }
@@ -69,14 +67,16 @@ export function initializeSocket(httpServer: HTTPServer) {
             return;
           }
 
-
           // Save message to database
-          const [inserted] = await db.insert(messages).values({
-            senderId,
-            receiverId: data.receiverId,
-            content: data.content,
-            sendAt: new Date().toISOString(),
-          }).returning({ msgId: messages.msgId });
+          const [inserted] = await db
+            .insert(messages)
+            .values({
+              senderId,
+              receiverId: data.receiverId,
+              content: data.content,
+              sentAt: new Date().toISOString(),
+            })
+            .returning({ msgId: messages.msgId });
 
           const msgId = inserted.msgId;
 
@@ -88,7 +88,7 @@ export function initializeSocket(httpServer: HTTPServer) {
               senderId,
               senderName: socket.handshake.auth.senderName || "Unknown",
               content: data.content,
-              sendAt: new Date().toISOString(),
+              sentAt: new Date().toISOString(),
               isOnline: true,
             });
           }
@@ -97,7 +97,7 @@ export function initializeSocket(httpServer: HTTPServer) {
           callback({
             success: true,
             msgId,
-            sendAt: new Date().toISOString(),
+            sentAt: new Date().toISOString(),
           });
         } catch (error) {
           console.error("Error sending message:", error);
@@ -139,6 +139,43 @@ export function initializeSocket(httpServer: HTTPServer) {
           }
         } catch (error) {
           console.error("Error marking as read:", error);
+        }
+      }
+    );
+
+    /**
+     * Event: mark_messages_as_seen
+     * Mark messages from a specific user as seen
+     */
+    socket.on(
+      "mark_messages_as_seen",
+      async (data: { otherUserId: number }) => {
+        try {
+          const userId = socket.userId;
+          if (!userId) return;
+
+          // Update all messages from otherUserId to userId to seen=true
+          await db
+            .update(messages)
+            .set({ seen: true })
+            .where(
+              and(
+                eq(messages.senderId, data.otherUserId),
+                eq(messages.receiverId, userId),
+                eq(messages.seen, false)
+              )
+            );
+
+          // Notify the other user that their messages were seen
+          const otherUserSocketId = connectedUsers.get(data.otherUserId);
+          if (otherUserSocketId) {
+            io.to(otherUserSocketId).emit("messages_seen", {
+              seenBy: userId,
+              otherUserId: data.otherUserId,
+            });
+          }
+        } catch (error) {
+          console.error("Error marking messages as seen:", error);
         }
       }
     );
@@ -223,12 +260,15 @@ export function initializeSocket(httpServer: HTTPServer) {
           const roomName = `team_${data.teamId}`;
 
           // Save team message to database
-          const [inserted] = await db.insert(messages).values({
-            senderId,
-            receiverId: null, // null for team messages
-            content: `[TEAM_${data.teamId}] ${data.content}`,
-            sendAt: new Date().toISOString(),
-          }).returning({ msgId: messages.msgId });
+          const [inserted] = await db
+            .insert(messages)
+            .values({
+              senderId,
+              receiverId: null, // null for team messages
+              content: `[TEAM_${data.teamId}] ${data.content}`,
+              sentAt: new Date().toISOString(),
+            })
+            .returning({ msgId: messages.msgId });
 
           const msgId = inserted.msgId;
 
@@ -239,7 +279,7 @@ export function initializeSocket(httpServer: HTTPServer) {
             senderName: socket.handshake.auth.senderName || "Unknown",
             content: data.content,
             teamId: data.teamId,
-            sendAt: new Date().toISOString(),
+            sentAt: new Date().toISOString(),
           });
 
           callback({ success: true, msgId });

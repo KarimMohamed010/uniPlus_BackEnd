@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { validateBody } from "../middleware/validation.ts";
 import { z } from "zod";
-import * as studentController from "../controllers/studentController.ts";
+import * as messagesController from "../controllers/messagesController.ts";
 
 const router = Router();
 
@@ -12,13 +12,16 @@ const sendMessageSchema = z.object({
 });
 
 // GET endpoints
-router.get("/", studentController.getNotifications);
+router.get("/unread", messagesController.getNotifications);
+router.get("/received", messagesController.getRecievedMessages);
+router.get("/sent", messagesController.getSentMessages);
+
 
 // POST endpoints
 router.post(
   "/send",
   validateBody(sendMessageSchema),
-  studentController.sendMessage
+  messagesController.sendMessage
 );
 
 export default router;

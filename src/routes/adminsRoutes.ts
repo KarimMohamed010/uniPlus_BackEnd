@@ -50,20 +50,20 @@ const toggleUserStatusSchema = z.object({
 });
 
 // 1. Get pending approvals (events and organizations)
-router.get("/approvals/pending", adminController.getPendingApprovals);
+// router.get("/approvals/pending", adminController.getPendingApprovals);
 
 // 2. Approve or reject an item
-router.patch(
-  "/approvals/:itemId",
-  validateBody(approveItemSchema),
-  adminController.approveItem
-);
+// router.patch(
+//   "/approvals/:itemId",
+//   validateBody(approveItemSchema),
+//   adminController.approveItem
+// );
 
 // 3. Add new admin
 router.post("/", validateBody(addAdminSchema), adminController.addAdmin);
 
 // 4. Get all admins
-router.get("/list", adminController.getAllAdmins);
+// router.get("/list", adminController.getAllAdmins);
 
 // 5. Update admin info
 router.patch(
@@ -86,13 +86,13 @@ router.get(
 );
 
 // 8. Generate participation report
-router.get(
-  "/reports/participation",
-  adminController.generateParticipationReport
-);
+// router.get(
+//   "/reports/participation",
+//   adminController.generateParticipationReport
+// );
 
 // 9. Generate engagement report
-router.get("/reports/engagement", adminController.generateEngagementReport);
+// router.get("/reports/engagement", adminController.generateEngagementReport);
 
 // 10. Get team engagement report
 router.get("/reports/teams/:teamId", adminController.getTeamEngagementReport);
@@ -104,24 +104,24 @@ router.post(
   adminController.issueWarning
 );
 
-// 12. Get warnings for a specific user
-router.get("/warnings/:userId", adminController.getUserWarnings);
+// // 12. Get warnings for a specific user
+// router.get("/warnings/:userId", adminController.getUserWarnings);
 
-// 13. Get all users
-router.get("/users/list", adminController.getAllUsers);
+// // 13. Get all users
+// router.get("/users/list", adminController.getAllUsers);
 
-// 14. Toggle user status (activate/deactivate)
-router.patch("/users/:userId/status", adminController.toggleUserStatus);
+// // 14. Toggle user status (activate/deactivate)
+// router.patch("/users/:userId/status", adminController.toggleUserStatus);
 
-// 15. Send announcement
-router.post(
-  "/announcements",
-  validateBody(sendAnnouncementSchema),
-  adminController.sendAnnouncement
-);
+// // 15. Send announcement
+// router.post(
+//   "/announcements",
+//   validateBody(sendAnnouncementSchema),
+//   adminController.sendAnnouncement
+// );
 
-// 16. Get all announcements
-router.get("/announcements", adminController.getAnnouncements);
+// // 16. Get all announcements
+// router.get("/announcements", adminController.getAnnouncements);
 
 // 17. Get received support messages
 router.get("/messages", adminController.getAdminMessages);

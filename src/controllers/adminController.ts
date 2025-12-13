@@ -271,13 +271,11 @@ export async function issueWarning(
     const adminId = (req as any).user.id;
 
     // Send warning message to user
-    const msgId = Date.now();
     await db.insert(messages).values({
-      msgId: messageId,
       senderId: adminId,
       receiverId: userId,
       content: `WARNING: ${warningMessage}`,
-      sendAt: new Date().toISOString(),
+      sentAt: new Date().toISOString(),
     });
 
     return res.status(201).json({
@@ -329,12 +327,11 @@ export async function sendAnnouncement(
     const { recipientIds, content } = req.body;
     const adminId = (req as any).user.id;
 
-    const messages_data = recipientIds.map((recipientId, index) => ({
-      msgId: Date.now() + index,
+    const messages_data = recipientIds.map((recipientId) => ({
       senderId: adminId,
       receiverId: recipientId,
       content,
-      sendAt: new Date().toISOString(),
+      sentAt: new Date().toISOString(),
     }));
 
     await db.insert(messages).values(messages_data);
@@ -373,330 +370,330 @@ export async function getAdminMessages(
 }
 
 // 8. Get pending items for approval (events and organizations)
-export async function getPendingApprovals(
-  req: Request<any, any, any>,
-  res: Response
-) {
-  try {
-    // Get pending events
-    const pendingEvents = await db
-      .select()
-      .from(events)
-      .where(eq(events.status, "pending"));
+// export async function getPendingApprovals(
+//   req: Request<any, any, any>,
+//   res: Response
+// ) {
+//   try {
+//     // Get pending events
+//     const pendingEvents = await db
+//       .select()
+//       .from(events)
+//       .where(eq(events.status, "pending"));
 
-    // TODO: Add pending teams/organizations when teams schema is updated with status field
+//     // TODO: Add pending teams/organizations when teams schema is updated with status field
 
-    return res.status(200).json({
-      message: "Pending approvals retrieved",
-      events: pendingEvents,
-      teams: [],
-    });
-  } catch (error) {
-    console.error("Error retrieving pending approvals:", error);
-    res.status(500).json({ error: "Failed to retrieve pending approvals" });
-  }
-}
+//     return res.status(200).json({
+//       message: "Pending approvals retrieved",
+//       events: pendingEvents,
+//       teams: [],
+//     });
+//   } catch (error) {
+//     console.error("Error retrieving pending approvals:", error);
+//     res.status(500).json({ error: "Failed to retrieve pending approvals" });
+//   }
+// }
 
-// 9. Approve or reject an item
-export async function approveItem(
-  req: Request<
-    { itemId: string },
-    any,
-    { approved: boolean; reason?: string; itemType: "event" | "team" }
-  >,
-  res: Response
-) {
-  try {
-    const { itemId } = req.params;
-    const { approved, reason, itemType } = req.body;
-    const adminId = (req as any).user.id;
+// // 9. Approve or reject an item
+// export async function approveItem(
+//   req: Request<
+//     { itemId: string },
+//     any,
+//     { approved: boolean; reason?: string; itemType: "event" | "team" }
+//   >,
+//   res: Response
+// ) {
+//   try {
+//     const { itemId } = req.params;
+//     const { approved, reason, itemType } = req.body;
+//     const adminId = (req as any).user.id;
 
-    if (itemType === "event") {
-      await db
-        .update(events)
-        .set({
-          status: approved ? "approved" : "rejected",
-          updatedAt: new Date(),
-        })
-        .where(eq(events.id, parseInt(itemId)));
-    } else if (itemType === "team") {
-      // TODO: Update teams table when status field is added
-    }
+//     if (itemType === "event") {
+//       await db
+//         .update(events)
+//         .set({
+//           status: approved ? "approved" : "rejected",
+//           updatedAt: new Date(),
+//         })
+//         .where(eq(events.id, parseInt(itemId)));
+//     } else if (itemType === "team") {
+//       // TODO: Update teams table when status field is added
+//     }
 
-    return res.status(200).json({
-      message: `Item ${approved ? "approved" : "rejected"} successfully`,
-    });
-  } catch (error) {
-    console.error("Error approving item:", error);
-    res.status(500).json({ error: "Failed to approve item" });
-  }
-}
+//     return res.status(200).json({
+//       message: `Item ${approved ? "approved" : "rejected"} successfully`,
+//     });
+//   } catch (error) {
+//     console.error("Error approving item:", error);
+//     res.status(500).json({ error: "Failed to approve item" });
+//   }
+// }
 
-// 10. Add new admin
-export async function addAdmin(
-  req: Request<any, any, { userId: string }>,
-  res: Response
-) {
-  try {
-    const { userId } = req.body;
-    const adminId = (req as any).user.id;
+// // 10. Add new admin
+// export async function addAdmin(
+//   req: Request<any, any, { userId: string }>,
+//   res: Response
+// ) {
+//   try {
+//     const { userId } = req.body;
+//     const adminId = (req as any).user.id;
 
-    // Check if user exists
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, parseInt(userId)))
-      .limit(1);
+//     // Check if user exists
+//     const user = await db
+//       .select()
+//       .from(users)
+//       .where(eq(users.id, parseInt(userId)))
+//       .limit(1);
 
-    if (user.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
+//     if (user.length === 0) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
 
-    // Add admin role to user
-    await db
-      .update(users)
-      .set({ role: "admin" })
-      .where(eq(users.id, parseInt(userId)));
+//     // Add admin role to user
+//     await db
+//       .update(users)
+//       .set({ role: "admin" })
+//       .where(eq(users.id, parseInt(userId)));
 
-    return res.status(200).json({
-      message: "Admin added successfully",
-    });
-  } catch (error) {
-    console.error("Error adding admin:", error);
-    res.status(500).json({ error: "Failed to add admin" });
-  }
-}
+//     return res.status(200).json({
+//       message: "Admin added successfully",
+//     });
+//   } catch (error) {
+//     console.error("Error adding admin:", error);
+//     res.status(500).json({ error: "Failed to add admin" });
+//   }
+// }
 
-// 11. Get all admins
-export async function getAllAdmins(req: Request<any, any, any>, res: Response) {
-  try {
-    const adminList = await db
-      .select({
-        id: users.id,
-        fname: users.fname,
-        lname: users.lname,
-        username: users.username,
-        email: users.email,
-        role: users.role,
-      })
-      .from(users)
-      .where(eq(users.role, "admin"));
+// // 11. Get all admins
+// export async function getAllAdmins(req: Request<any, any, any>, res: Response) {
+//   try {
+//     const adminList = await db
+//       .select({
+//         id: users.id,
+//         fname: users.fname,
+//         lname: users.lname,
+//         username: users.username,
+//         email: users.email,
+//         role: users.role,
+//       })
+//       .from(users)
+//       .where(eq(users.role, "admin"));
 
-    return res.status(200).json({
-      message: "Admins retrieved",
-      admins: adminList,
-    });
-  } catch (error) {
-    console.error("Error retrieving admins:", error);
-    res.status(500).json({ error: "Failed to retrieve admins" });
-  }
-}
+//     return res.status(200).json({
+//       message: "Admins retrieved",
+//       admins: adminList,
+//     });
+//   } catch (error) {
+//     console.error("Error retrieving admins:", error);
+//     res.status(500).json({ error: "Failed to retrieve admins" });
+//   }
+// }
 
-// 12. Generate participation report
-export async function generateParticipationReport(
-  req: Request<any, any, any>,
-  res: Response
-) {
-  try {
-    // TODO: Implement report generation based on event registrations and attendance
-    const report = {
-      totalEvents: 0,
-      totalParticipants: 0,
-      averageAttendance: 0,
-      events: [],
-    };
+// // 12. Generate participation report
+// export async function generateParticipationReport(
+//   req: Request<any, any, any>,
+//   res: Response
+// ) {
+//   try {
+//     // TODO: Implement report generation based on event registrations and attendance
+//     const report = {
+//       totalEvents: 0,
+//       totalParticipants: 0,
+//       averageAttendance: 0,
+//       events: [],
+//     };
 
-    return res.status(200).json({
-      message: "Participation report generated",
-      report,
-    });
-  } catch (error) {
-    console.error("Error generating report:", error);
-    res.status(500).json({ error: "Failed to generate report" });
-  }
-}
+//     return res.status(200).json({
+//       message: "Participation report generated",
+//       report,
+//     });
+//   } catch (error) {
+//     console.error("Error generating report:", error);
+//     res.status(500).json({ error: "Failed to generate report" });
+//   }
+// }
 
-// 13. Generate engagement report
-export async function generateEngagementReport(
-  req: Request<any, any, any>,
-  res: Response
-) {
-  try {
-    // TODO: Implement engagement metrics based on user activity
-    const report = {
-      totalUsers: 0,
-      activeUsers: 0,
-      engagementScore: 0,
-      userActivity: [],
-    };
+// // 13. Generate engagement report
+// export async function generateEngagementReport(
+//   req: Request<any, any, any>,
+//   res: Response
+// ) {
+//   try {
+//     // TODO: Implement engagement metrics based on user activity
+//     const report = {
+//       totalUsers: 0,
+//       activeUsers: 0,
+//       engagementScore: 0,
+//       userActivity: [],
+//     };
 
-    return res.status(200).json({
-      message: "Engagement report generated",
-      report,
-    });
-  } catch (error) {
-    console.error("Error generating report:", error);
-    res.status(500).json({ error: "Failed to generate report" });
-  }
-}
+//     return res.status(200).json({
+//       message: "Engagement report generated",
+//       report,
+//     });
+//   } catch (error) {
+//     console.error("Error generating report:", error);
+//     res.status(500).json({ error: "Failed to generate report" });
+//   }
+// }
 
-// 14. Issue behavior warning
-export async function issueWarning(
-  req: Request<any, any, { userId: string; reason: string }>,
-  res: Response
-) {
-  try {
-    const { userId, reason } = req.body;
-    const adminId = (req as any).user.id;
+// // 14. Issue behavior warning
+// export async function issueWarning(
+//   req: Request<any, any, { userId: string; reason: string }>,
+//   res: Response
+// ) {
+//   try {
+//     const { userId, reason } = req.body;
+//     const adminId = (req as any).user.id;
 
-    // Check if user exists
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, parseInt(userId)))
-      .limit(1);
+//     // Check if user exists
+//     const user = await db
+//       .select()
+//       .from(users)
+//       .where(eq(users.id, parseInt(userId)))
+//       .limit(1);
 
-    if (user.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
+//     if (user.length === 0) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
 
-    // TODO: Create a warnings table and insert warning record
-    // For now, just log the warning action
-    console.log(
-      `Warning issued to user ${userId} by admin ${adminId}: ${reason}`
-    );
+//     // TODO: Create a warnings table and insert warning record
+//     // For now, just log the warning action
+//     console.log(
+//       `Warning issued to user ${userId} by admin ${adminId}: ${reason}`
+//     );
 
-    return res.status(200).json({
-      message: "Warning issued successfully",
-    });
-  } catch (error) {
-    console.error("Error issuing warning:", error);
-    res.status(500).json({ error: "Failed to issue warning" });
-  }
-}
+//     return res.status(200).json({
+//       message: "Warning issued successfully",
+//     });
+//   } catch (error) {
+//     console.error("Error issuing warning:", error);
+//     res.status(500).json({ error: "Failed to issue warning" });
+//   }
+// }
 
-// 15. Get user warnings
-export async function getUserWarnings(
-  req: Request<{ userId: string }, any, any>,
-  res: Response
-) {
-  try {
-    const { userId } = req.params;
+// // 15. Get user warnings
+// export async function getUserWarnings(
+//   req: Request<{ userId: string }, any, any>,
+//   res: Response
+// ) {
+//   try {
+//     const { userId } = req.params;
 
-    // TODO: Query warnings table when it's created
-    const warnings: any[] = [];
+//     // TODO: Query warnings table when it's created
+//     const warnings: any[] = [];
 
-    return res.status(200).json({
-      message: "User warnings retrieved",
-      warnings,
-    });
-  } catch (error) {
-    console.error("Error retrieving warnings:", error);
-    res.status(500).json({ error: "Failed to retrieve warnings" });
-  }
-}
+//     return res.status(200).json({
+//       message: "User warnings retrieved",
+//       warnings,
+//     });
+//   } catch (error) {
+//     console.error("Error retrieving warnings:", error);
+//     res.status(500).json({ error: "Failed to retrieve warnings" });
+//   }
+// }
 
-// 16. Get all users (for management)
-export async function getAllUsers(req: Request<any, any, any>, res: Response) {
-  try {
-    const allUsers = await db
-      .select({
-        id: users.id,
-        fname: users.fname,
-        lname: users.lname,
-        username: users.username,
-        email: users.email,
-        role: users.role,
-        isActive: users.isActive,
-      })
-      .from(users);
+// // 16. Get all users (for management)
+// export async function getAllUsers(req: Request<any, any, any>, res: Response) {
+//   try {
+//     const allUsers = await db
+//       .select({
+//         id: users.id,
+//         fname: users.fname,
+//         lname: users.lname,
+//         username: users.username,
+//         email: users.email,
+//         role: users.role,
+//         isActive: users.isActive,
+//       })
+//       .from(users);
 
-    return res.status(200).json({
-      message: "Users retrieved",
-      users: allUsers,
-    });
-  } catch (error) {
-    console.error("Error retrieving users:", error);
-    res.status(500).json({ error: "Failed to retrieve users" });
-  }
-}
+//     return res.status(200).json({
+//       message: "Users retrieved",
+//       users: allUsers,
+//     });
+//   } catch (error) {
+//     console.error("Error retrieving users:", error);
+//     res.status(500).json({ error: "Failed to retrieve users" });
+//   }
+// }
 
-// 17. Toggle user status (activate/deactivate)
-export async function toggleUserStatus(
-  req: Request<{ userId: string }, any, any>,
-  res: Response
-) {
-  try {
-    const { userId } = req.params;
+// // 17. Toggle user status (activate/deactivate)
+// export async function toggleUserStatus(
+//   req: Request<{ userId: string }, any, any>,
+//   res: Response
+// ) {
+//   try {
+//     const { userId } = req.params;
 
-    // Get current user status
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, parseInt(userId)))
-      .limit(1);
+//     // Get current user status
+//     const user = await db
+//       .select()
+//       .from(users)
+//       .where(eq(users.id, parseInt(userId)))
+//       .limit(1);
 
-    if (user.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
+//     if (user.length === 0) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
 
-    // Toggle the status
-    const newStatus = !user[0].isActive;
-    await db
-      .update(users)
-      .set({ isActive: newStatus })
-      .where(eq(users.id, parseInt(userId)));
+//     // Toggle the status
+//     const newStatus = !user[0].isActive;
+//     await db
+//       .update(users)
+//       .set({ isActive: newStatus })
+//       .where(eq(users.id, parseInt(userId)));
 
-    return res.status(200).json({
-      message: `User ${newStatus ? "activated" : "deactivated"} successfully`,
-    });
-  } catch (error) {
-    console.error("Error toggling user status:", error);
-    res.status(500).json({ error: "Failed to toggle user status" });
-  }
-}
+//     return res.status(200).json({
+//       message: `User ${newStatus ? "activated" : "deactivated"} successfully`,
+//     });
+//   } catch (error) {
+//     console.error("Error toggling user status:", error);
+//     res.status(500).json({ error: "Failed to toggle user status" });
+//   }
+// }
 
-// 18. Send system announcement
-export async function sendAnnouncement(
-  req: Request<any, any, { title: string; message: string }>,
-  res: Response
-) {
-  try {
-    const { title, message } = req.body;
-    const adminId = (req as any).user.id;
+// // 18. Send system announcement
+// export async function sendAnnouncement(
+//   req: Request<any, any, { title: string; message: string }>,
+//   res: Response
+// ) {
+//   try {
+//     const { title, message } = req.body;
+//     const adminId = (req as any).user.id;
 
-    if (!title || !message) {
-      return res.status(400).json({ error: "Title and message are required" });
-    }
+//     if (!title || !message) {
+//       return res.status(400).json({ error: "Title and message are required" });
+//     }
 
-    // TODO: Create an announcements table and insert announcement
-    // For now, just log it
-    console.log(`Announcement sent by admin ${adminId}: ${title}`);
+//     // TODO: Create an announcements table and insert announcement
+//     // For now, just log it
+//     console.log(`Announcement sent by admin ${adminId}: ${title}`);
 
-    return res.status(200).json({
-      message: "Announcement sent successfully",
-    });
-  } catch (error) {
-    console.error("Error sending announcement:", error);
-    res.status(500).json({ error: "Failed to send announcement" });
-  }
-}
+//     return res.status(200).json({
+//       message: "Announcement sent successfully",
+//     });
+//   } catch (error) {
+//     console.error("Error sending announcement:", error);
+//     res.status(500).json({ error: "Failed to send announcement" });
+//   }
+// }
 
-// 19. Get all announcements
-export async function getAnnouncements(
-  req: Request<any, any, any>,
-  res: Response
-) {
-  try {
-    // TODO: Query announcements table when it's created
-    const announcements: any[] = [];
+// // 19. Get all announcements
+// export async function getAnnouncements(
+//   req: Request<any, any, any>,
+//   res: Response
+// ) {
+//   try {
+//     // TODO: Query announcements table when it's created
+//     const announcements: any[] = [];
 
-    return res.status(200).json({
-      message: "Announcements retrieved",
-      announcements,
-    });
-  } catch (error) {
-    console.error("Error retrieving announcements:", error);
-    res.status(500).json({ error: "Failed to retrieve announcements" });
-  }
-}
+//     return res.status(200).json({
+//       message: "Announcements retrieved",
+//       announcements,
+//     });
+//   } catch (error) {
+//     console.error("Error retrieving announcements:", error);
+//     res.status(500).json({ error: "Failed to retrieve announcements" });
+//   }
+// }

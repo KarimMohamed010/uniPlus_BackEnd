@@ -14,11 +14,14 @@ import type { errorMonitor } from "events";
 export async function signUp(req: Request<any, any, NewUser>, res: Response) {
   try {
     const userData = req.body;
+    userData.email = userData.email.toLowerCase();
 
     const hashedPass = await hashPassword(userData.userPassword);
 
     // Create user as student
-    const [user] = await db
+    
+    const user = await db.transaction(async (tx) => {
+    const [result] = await tx
       .insert(users)
       .values({
         ...userData,
@@ -31,16 +34,17 @@ export async function signUp(req: Request<any, any, NewUser>, res: Response) {
         lname: users.lname,
         username: users.username,
       });
-
+     
     // Always create as student
-    await db.insert(students).values({ id: user.id });
-
+    await tx.insert(students).values({ id: result.id });
+    return result;
+    });
     const token = await generateToken({
       id: user.id,
       email: user.email,
       roles: {
         global: "student",
-        team: [],
+        team: []
       },
     });
 
@@ -51,6 +55,7 @@ export async function signUp(req: Request<any, any, NewUser>, res: Response) {
         email: user.email,
         fname: user.fname,
         lname: user.lname,
+        username: user.username,
         roles: {
           global: "student",
           team: [],
@@ -78,8 +83,8 @@ export async function signIn(
   res: Response
 ) {
   try {
-    const { email: userEmail, userPassword: providedPassword } = req.body;
-
+    let { email: userEmail, userPassword: providedPassword } = req.body;
+    userEmail = userEmail.toLowerCase();
     // Find user by email
     const foundUsers = await db
       .select({
@@ -152,6 +157,7 @@ export async function signIn(
         email: user.email,
         fname: user.fname,
         lname: user.lname,
+        username: user.username,
         roles: {
           global: globalRole,
           team: teamRoles,

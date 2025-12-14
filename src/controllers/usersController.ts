@@ -116,3 +116,34 @@ export async function changePassword(
     res.status(500).json({ error: "Failed to change password" });
   }
 }
+
+export async function updateProfilePic(
+  req: Request<{}, any, { bio: string; imgUrl: string }>,
+  res: Response
+) {
+  try {
+    const { imgUrl } = req.body;
+    const userId = (req as any).user.id; // From auth middleware
+
+    console.log("updateProfilePic called with:", { userId, imgUrl });
+
+    if (imgUrl === undefined) {
+      return res
+        .status(400)
+        .json({ error: "Image URL is required" });
+    }
+
+    // Update profile in database
+    const result = await db
+      .update(users)
+      .set({ imgUrl : imgUrl })
+      .where(eq(users.id, userId));
+    
+    console.log("Update result:", result);
+
+    return res.status(200).json({ message: "Profile updated successfully" });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+}

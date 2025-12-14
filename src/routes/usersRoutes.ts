@@ -12,15 +12,22 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(8, "New password must be at least 8 characters"),
 });
 
-// Get user by username (public)
+// Get user by username 
 router.get("/:username", usersController.getUserByUsername);
 
-// Change password (protected)
+// Change password
 router.patch(
   "/change-password",
-  authenticate,
+
   validateBody(changePasswordSchema),
   usersController.changePassword
+);
+
+// Update profile picture
+router.patch(
+  "/update-profile-pic",
+
+  usersController.updateProfilePic
 );
 
 export default router;

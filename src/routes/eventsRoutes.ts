@@ -14,7 +14,12 @@ const createEventSchema = z.object({
   endTime: z.string().datetime(),
   teamId: z.number(),
 });
-
+// Schema for rating events
+const rateEventSchema = z.object({
+  eventId: z.number(),
+  rating: z.number().min(0).max(5),
+  feedback: z.string().optional(),
+});
 const updateEventSchema = createEventSchema.partial();
 
 const approveEventSchema = z.object({
@@ -37,11 +42,7 @@ const searchEventSchema = z.object({
 // GET endpoints
 router.get("/", eventsController.getAllEvents);
 router.get("/pending", eventsController.getPendingEvents);
-router.get(
-  "/search",
-  validateBody(searchEventSchema),
-  eventsController.searchEvents
-);
+router.get("/search", validateBody(searchEventSchema), eventsController.searchEvents);
 router.get("/type/:type", eventsController.getEventsByType);
 router.get("/date/:date", eventsController.getEventsByDate);
 router.get("/:eventId", eventsController.getEventById);
@@ -50,6 +51,10 @@ router.get("/:eventId/feedback", eventsController.getEventFeedback);
 router.get("/:eventId/speakers", eventsController.getEventSpeakers);
 router.get("/:eventId/room", eventsController.getEventRoom);
 router.get("/team/:teamId", eventsController.getTeamEvents);
+router.get("/events/upcoming", eventsController.getMyUpcomingRegisteredEvents);
+router.get("/events/attended", eventsController.getMyAttendedRegisteredEvents);
+router.get("/events/upcoming", eventsController.getUpcomingEvents);
+router.get("/events/:eventId/stats", eventsController.getEventAttendeeStats);
 
 // POST endpoints
 router.post("/", validateBody(createEventSchema), eventsController.createEvent);
@@ -62,6 +67,12 @@ router.post(
   "/:eventId/room",
   validateBody(assignRoomSchema),
   eventsController.assignRoomToEvent
+);
+// 5. Rate and provide feedback for event
+router.post(
+  "/events/rate",
+  validateBody(rateEventSchema),
+  eventsController.rateEvent
 );
 
 // PATCH endpoints
@@ -88,5 +99,6 @@ router.delete(
   eventsController.removeSpeakerFromEvent
 );
 router.delete("/:eventId/room", eventsController.removeRoomFromEvent);
-
+// 8. Cancel event registration
+router.delete("/events/:eventId/cancel", eventsController.cancelRegistration);
 export default router;

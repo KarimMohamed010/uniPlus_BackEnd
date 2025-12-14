@@ -295,7 +295,7 @@ export const messages = pgTable(
     content: text(),
     senderId: integer("sender_id"),
     receiverId: integer("receiver_id"),
-    seen : boolean().default(false),
+    seen: boolean().default(false),
   },
   (table) => [
     foreignKey({

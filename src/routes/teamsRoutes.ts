@@ -14,7 +14,18 @@ const updateTeamSchema = createTeamSchema.partial();
 
 router.get("/", teamsController.getAllTeams);
 router.get("/:id", teamsController.getTeamById);
+router.get("/:id/members", teamsController.getTeamMembers);
+
 router.post("/", validateBody(createTeamSchema), teamsController.createTeam);
+
+
 router.patch("/:id", validateBody(updateTeamSchema), teamsController.updateTeam);
+router.patch("/:id/members", teamsController.updateMemberRole);
+
+router.delete("/:id/members", teamsController.removeMember);
+router.delete("/:id/leave", teamsController.leaveTeam);
+router.delete("/:id", teamsController.deleteTeam);
+
+router.patch("/:teamId/accept", teamsController.acceptTeam);
 
 export default router;

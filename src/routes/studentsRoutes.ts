@@ -23,12 +23,7 @@ const applyToTeamSchema = z.object({
   cv: z.string().optional(),
 });
 
-// Schema for rating events
-const rateEventSchema = z.object({
-  eventId: z.number(),
-  rating: z.number().min(0).max(5),
-  feedback: z.string().optional(),
-});
+
 
 // Schema for sending messages
 const sendMessageSchema = z.object({
@@ -36,8 +31,6 @@ const sendMessageSchema = z.object({
   content: z.string().min(1),
 });
 
-// 1. Get all available events
-router.get("/events/available", studentController.getAvailableEvents);
 
 // 2. Register for an event
 router.post(
@@ -60,27 +53,20 @@ router.post(
   studentController.applyToTeam
 );
 
-// 5. Rate and provide feedback for event
-router.post(
-  "/events/rate",
-  validateBody(rateEventSchema),
-  studentController.rateEvent
-);
+
 
 
 
 // 7. Get my ticket for an event
 router.get("/tickets/:ticketId", studentController.getMyTicket);
 
-// 8. Cancel event registration
-router.delete("/events/:eventId/cancel", studentController.cancelRegistration);
+// I'm not sure with the url of the functions below
 
-// 9. Get my upcoming registered events
-router.get("/events/upcoming", studentController.getMyUpcomingRegisteredEvents);
+router.patch("/profile", studentController.updateProfile);
 
-// 10. Get my attended events
-router.get("/events/attended", studentController.getMyAttendedRegisteredEvents);
+router.get("/profile", studentController.getProfile);
 
+router.get("/:studentId/certificates", studentController.getCertificates);
 
 
 export default router;

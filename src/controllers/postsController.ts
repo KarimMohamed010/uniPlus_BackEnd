@@ -13,6 +13,7 @@ import {
     students,
 } from "../db/schema.ts";
 import { eq, desc, and, sql } from "drizzle-orm";
+import { awardPoints } from "../utils/badgeUtils.ts";
 
 // 1. Create a new post
 export async function createPostHandler(
@@ -50,6 +51,10 @@ export async function createPostHandler(
 
             await db.insert(postmedia).values(mediaValues);
         }
+
+        // Award points for creating a post (10 points)
+        // Note: awardPoints checks eligibility internally
+        await awardPoints(userId, teamId, 10);
 
         return res.status(201).json({
             message: "Post created successfully",

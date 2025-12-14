@@ -15,7 +15,7 @@ import {
 } from "../db/schema.ts";
 import { eq, desc, and, sql, isNotNull, like, gt, lt, asc } from "drizzle-orm";
 
-// 1. Create an event
+// 1. Create an event ( organizer role only )
 export async function createEvent(
     req: Request<any, any, { title: string; description?: string; type?: string; startTime: string; endTime: string; basePrice?: number; teamId: number }>,
     res: Response
@@ -119,7 +119,7 @@ export async function getTeamEvents(req: Request<{ teamId: string }>, res: Respo
     }
 }
 
-// 4. Update an event
+// 4. Update an event (organizer role only)
 export async function updateEvent(req: Request<{ eventId: string }>, res: Response) {
     try {
         const { eventId } = req.params;
@@ -174,7 +174,7 @@ export async function updateEvent(req: Request<{ eventId: string }>, res: Respon
     }
 }
 
-// 5. Delete an event
+// 5. Delete an event (organizer or admin)
 export async function deleteEvent(req: Request<{ eventId: string }>, res: Response) {
     try {
         const { eventId } = req.params;
@@ -261,7 +261,7 @@ export async function approveEvent(req: Request<{ eventId: string }>, res: Respo
     }
 }
 
-// 7. Assign a speaker to an event (Organizer or Admin)
+// 7. Assign a speaker to an event (Organizer only)
 export async function assignSpeakerToEvent(req: Request, res: Response) {
     try {
         const { eventId, speakerId } = req.body;
@@ -369,7 +369,7 @@ export async function removeSpeakerFromEvent(req: Request, res: Response) {
     }
 }
 
-// 9. Get all speakers for an event
+// 9. Get all speakers for a certain event
 export async function getEventSpeakers(req: Request<{ eventId: string }>, res: Response) {
     try {
         const { eventId } = req.params;
@@ -455,7 +455,7 @@ export async function changeSpeaker(req: Request, res: Response) {
             return res.status(404).json({ error: "New speaker not found" });
         }
         //The replacement here is done by removing the old speaker and adding the new speaker
-        // as the speaker id is partial key that give error when trinh to chnge it 
+        // as the speaker id is partial key that give error when trying to chnge it 
         // Remove old speaker
         await db.delete(speak).where(
             and(
@@ -816,7 +816,7 @@ export async function getEventFeedback(
         res.status(500).json({ error: "Failed to fetch event feedback" });
     }
 }
-
+//==============SEARCHING AND FILTRING===================
 // 18. Get events by type (Public - for filtering)
 export async function getEventsByType(
     req: Request<any, any, any, { type: string }>,

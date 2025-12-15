@@ -66,19 +66,7 @@ export async function changePassword(
 ) {
   try {
     const { currentPassword, newPassword } = req.body;
-    const userId = (req as any).userId; // From auth middleware
-
-    if (!currentPassword || !newPassword) {
-      return res
-        .status(400)
-        .json({ error: "Current password and new password are required" });
-    }
-
-    if (newPassword.length < 6) {
-      return res
-        .status(400)
-        .json({ error: "New password must be at least 6 characters" });
-    }
+    const userId = (req as any).user.id; // From auth middleware
 
     // Get user from database
     const user = await db

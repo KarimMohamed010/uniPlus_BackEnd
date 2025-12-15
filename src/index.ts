@@ -9,6 +9,3 @@ initializeSocket(server);
 server.listen(env.PORT, () => {
   console.log(`server running on port ${env.PORT}`);
 });
-
-
-

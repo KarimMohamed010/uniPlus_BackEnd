@@ -32,6 +32,7 @@ export async function signUp(req: Request<any, any, NewUser>, res: Response) {
         email: users.email,
         fname: users.fname,
         lname: users.lname,
+        imgUrl: users.imgUrl,
         username: users.username,
       });
      
@@ -55,6 +56,7 @@ export async function signUp(req: Request<any, any, NewUser>, res: Response) {
         email: user.email,
         fname: user.fname,
         lname: user.lname,
+        imgUrl: user.imgUrl,
         username: user.username,
         roles: {
           global: "student",
@@ -93,6 +95,7 @@ export async function signIn(
         fname: users.fname,
         lname: users.lname,
         username: users.username,
+        imgUrl: users.imgUrl,
         userPassword: users.userPassword,
       })
       .from(users)
@@ -157,6 +160,7 @@ export async function signIn(
         email: user.email,
         fname: user.fname,
         lname: user.lname,
+        imgUrl: user.imgUrl,
         username: user.username,
         roles: {
           global: globalRole,

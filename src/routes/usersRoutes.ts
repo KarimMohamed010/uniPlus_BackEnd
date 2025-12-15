@@ -25,9 +25,16 @@ router.patch(
 
 // Update profile picture
 router.patch(
-  "/update-profile-pic",
+  "/profile-pic",
 
   usersController.updateProfilePic
+);
+
+// Update profile
+router.patch(
+  "/profile",
+
+  usersController.updateProfile
 );
 
 export default router;

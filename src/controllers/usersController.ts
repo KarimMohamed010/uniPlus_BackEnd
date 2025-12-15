@@ -147,3 +147,50 @@ export async function updateProfilePic(
     res.status(500).json({ error: "Failed to update profile" });
   }
 }
+
+export async function updateProfile(
+  req: Request,
+  res: Response
+) {
+  try {
+    const userData  = req.body;
+    const userId = (req as any).user.id; // From auth middleware
+
+    console.log("updateProfile called with:", { userId, userData });
+
+    // Update profile in database
+    const [user] = await db
+      .update(users)
+      .set({ ...userData })
+      .where(eq(users.id, userId)).returning({
+        id: users.id,
+        email: users.email,
+        fname: users.fname,
+        lname: users.lname,
+        username: users.username,
+      });
+    
+    console.log("Update result:", user);
+
+    return res.status(200).json({ message: "Profile updated successfully", user : {
+        id: user.id,
+        email: user.email,
+        fname: user.fname,
+        lname: user.lname,
+        username: user.username,
+      }, });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+      if ((error as any).cause.code === "23505") {
+      if (/email/i.test(error.cause.constraint)) {
+        return res.status(409).json({ error: "Email already exists" });
+      }
+      if (/username/i.test(error.cause.constraint)) {
+        return res.status(409).json({ error: "Username already exists" });
+      }
+    }
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+}
+
+

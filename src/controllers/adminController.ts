@@ -13,42 +13,6 @@ import type { NewUser } from "../db/schema.ts";
 import { hashPassword } from "../utils/password.ts";
 import type { AuthenticatedRequest } from "../middleware/auth.ts";
 
-// 1. Approve or reject events
-//NOTE: el ai by3oly tetshal 3shan da elmafrod yt3ml fy el event w hwa mawgod
-// export async function approveEvent(
-//   req: Request<{ eventId: string }, any, { acceptanceStatus: string }>,
-//   res: Response
-// ) {
-//   try {
-//     const { eventId } = req.params;
-//     const { acceptanceStatus } = req.body;
-//     const adminId = (req as any).user.id; //auth middleware will always attach the payload to the req
-
-//     if (!["approved", "rejected"].includes(acceptanceStatus)) {
-//       return res.status(400).json({
-//         error: "Invalid status. Must be 'approved' or 'rejected'",
-//       });
-//     }
-
-//     const [event] = await db
-//       .update(events)
-//       .set({
-//         acceptanceStatus,
-//         respondedBy: adminId,
-//       })
-//       .where(eq(events.id, parseInt(eventId)))
-//       .returning();
-
-//     return res.status(200).json({
-//       message: `Event ${acceptanceStatus}`,
-//       event,
-//     });
-//   } catch (error) {
-//     console.error("Error approving event:", error);
-//     res.status(500).json({ error: "Failed to approve event" });
-//   }
-// }
-
 // 1. Approve or reject teams
 export async function approveTeam(
   req: Request<{ teamId: string }, any, { acceptanceStatus: string }>,

@@ -10,6 +10,7 @@ import {
     users,
 } from "../db/schema.ts";
 import { eq, and, desc } from "drizzle-orm";
+import { awardPoints } from "../utils/badgeUtils.ts";
 
 // 1. Add a comment
 export async function addComment(
@@ -61,6 +62,11 @@ export async function addComment(
                 parentId: parentId || null,
             })
             .returning();
+
+        // Award points for creating a comment (5 points)
+        if (postRecord[0].teamId) {
+            await awardPoints(userId, postRecord[0].teamId, 5);
+        }
 
         return res.status(201).json({
             message: "Comment added successfully",

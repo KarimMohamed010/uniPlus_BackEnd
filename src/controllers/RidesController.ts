@@ -61,9 +61,8 @@ export async function getAllRides(req: Request, res: Response) {
             // Filter for rides on or after the specified date
             filters.push(sql`${rides.arrivalTime} >= ${date}`);
         }
-        if (availableOnly === 'true') {
-            filters.push(sql`${rides.seatsAvailable} > 0`);
-        }
+        // Return only available rides
+        filters.push(sql`${rides.seatsAvailable} > 0`);
 
         const ridesData = await db
             .select({

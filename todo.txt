@@ -1,9 +1,13 @@
-addadmin
-teamengagment reports
+teamengagment reports --> statistically 
 warning
+admin
 toggle status needs isActive col to let admin enable / disable
 
-publish event is an endpoint ??
 event pricing
 cv files ... where to upload ? and ui ?
-anything messages 
+messages 
+//////////////////
+USER : CONTROLLER AND ROUTES 
+profile update
+STUDENT : CONTROLLER AND ROUTES  
+get badges

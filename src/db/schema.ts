@@ -295,7 +295,7 @@ export const messages = pgTable(
     content: text(),
     senderId: integer("sender_id"),
     receiverId: integer("receiver_id"),
-    seen : boolean().default(false),
+    seen: boolean().default(false),
   },
   (table) => [
     foreignKey({
@@ -744,3 +744,38 @@ export const insertTicketsAndFeedbackSchema =
   createInsertSchema(ticketsAndFeedback);
 export const selectTicketsAndFeedbackSchema =
   createSelectSchema(ticketsAndFeedback);
+export const systemAnnouncements = pgTable(
+  "system_announcements",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity({
+      name: "system_announcements_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 2147483647,
+      cache: 1,
+    }),
+    content: text().notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+    authorId: integer("author_id").notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.authorId],
+      foreignColumns: [users.id],
+      name: "system_announcements_author_id_fkey",
+    })
+      .onUpdate("cascade")
+      .onDelete("cascade"),
+  ]
+);
+
+export type SystemAnnouncement = typeof systemAnnouncements.$inferSelect;
+export type NewSystemAnnouncement = typeof systemAnnouncements.$inferInsert;
+export const insertSystemAnnouncementSchema =
+  createInsertSchema(systemAnnouncements);
+export const selectSystemAnnouncementSchema =
+  createSelectSchema(systemAnnouncements);

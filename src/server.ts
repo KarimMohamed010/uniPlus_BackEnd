@@ -15,6 +15,7 @@ import adminsRoutes from "./routes/adminsRoutes.ts";
 import organizerRoutes from "./routes/organizerRoutes.ts";
 import teamsRoutes from "./routes/teamsRoutes.ts";
 import ridesRoutes from "./routes/ridesRoutes.ts";
+import announcementsRoutes from "./routes/announcementsRoutes.ts";
 import { authenticate } from "./middleware/auth.ts";
 import cors from "cors";
 
@@ -56,6 +57,7 @@ app.use("/api/tickets", ticketsRoutes);
 app.use("/api/applications", applicationsRoutes);
 app.use("/api/messages", messagesRoutes);
 app.use("/api/users", usersRoutes);
+app.use("/api/announcements", announcementsRoutes);
 app.use("/api/students", studentsRoutes);
 app.use("/api/admin", adminsRoutes);
 app.use("/api/organizer", organizerRoutes);

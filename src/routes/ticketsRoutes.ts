@@ -39,13 +39,8 @@ router.post(
   validateBody(checkInQRSchema),
   studentController.checkInViaQR
 );
-router.post(
-  "/rate",
-  validateBody(rateEventSchema),
-  studentController.rateEvent
-);
 
-// DELETE endpoints
-router.delete("/:eventId/cancel", studentController.cancelRegistration);
+
+
 
 export default router;

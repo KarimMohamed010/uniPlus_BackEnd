@@ -1,0 +1,1 @@
+ALTER TABLE "system_announcements" DROP COLUMN "title";

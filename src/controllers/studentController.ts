@@ -17,23 +17,6 @@ import {
 } from "../db/schema.ts";
 import { eq, and, gt, isNotNull, desc, asc } from "drizzle-orm";
 
-// 1. Browse and register for events
-export async function getAvailableEvents(req: Request, res: Response) {
-  try {
-    const availableEvents = await db
-      .select()
-      .from(events)
-      .where(eq(events.acceptanceStatus, "approved"));
-
-    return res.status(200).json({
-      message: "Available events retrieved",
-      events: availableEvents,
-    });
-  } catch (error) {
-    console.error("Error retrieving events:", error);
-    res.status(500).json({ error: "Failed to retrieve events" });
-  }
-}
 
 // 1. Register for event
 export async function registerForEvent(
@@ -534,31 +517,6 @@ export async function getProfile(req: Request, res: Response) {
   }
 }
 
-// 9. View certificates and achievements
-export async function getCertificates(req: Request, res: Response) {
-  try {
-    const studentId = (req as any).user.id;
-
-    const certificates = await db
-      .select()
-      .from(ticketsAndFeedback)
-      .where(
-        and(
-          eq(ticketsAndFeedback.studentId, studentId),
-          isNotNull(ticketsAndFeedback.certificationUrl)
-        )
-      );
-
-    return res.status(200).json({
-      message: "Certificates retrieved",
-      certificates,
-    });
-  } catch (error) {
-    console.error("Error retrieving certificates:", error);
-    res.status(500).json({ error: "Failed to retrieve certificates" });
-  }
-}
-
 // 9. Get achievements/badges
 export async function getBadges(req: Request, res: Response) {
   try {
@@ -579,108 +537,31 @@ export async function getBadges(req: Request, res: Response) {
   }
 }
 
-// 10. Calendar view - Get upcoming events
-export async function getUpcomingEvents(req: Request, res: Response) {
+
+
+// // 10. View certificates and achievements
+export async function getCertificates(req: Request, res: Response) {
   try {
-    const upcomingEvents = await db
+    const { studentId } = req.params;
+
+    const certificates = await db
       .select()
-      .from(events)
-      .where(eq(events.acceptanceStatus, "approved"));
-    // .where(gt(events.startTime, new Date().toISOString()));
+      .from(ticketsAndFeedback)
+      .where(
+        and(
+          eq(ticketsAndFeedback.studentId, parseInt(studentId)),
+          isNotNull(ticketsAndFeedback.certificationUrl)
+        )
+      );
 
     return res.status(200).json({
-      message: "Upcoming events retrieved",
-      events: upcomingEvents,
+      message: "Certificates retrieved",
+      certificates,
     });
-  } catch (error) {
-    console.error("Error retrieving upcoming events:", error);
-    res.status(500).json({ error: "Failed to retrieve upcoming events" });
+  } catch (error: any) {
+    console.error("Error retrieving certificates:", error);
+    res.status(500).json({ error: "Failed to retrieve certificates" });
   }
 }
 
-// 11. Create carpool
-export async function createCarpool(
-  req: Request<any, any, any>,
-  res: Response
-) {
-  try {
-    const { fromLoc, toLoc, price, seatsAvailable, arrivalTime, service } =
-      req.body;
-    const studentId = (req as any).user.id;
-
-    const [ride] = await db
-      .insert(rides)
-      .values({
-        fromLoc,
-        toLoc,
-        price,
-        seatsAvailable,
-        arrivalTime,
-        service,
-        createdBy: studentId,
-      })
-      .returning();
-
-    return res.status(201).json({
-      message: "Carpool created successfully",
-      ride,
-    });
-  } catch (error) {
-    console.error("Error creating carpool:", error);
-    res.status(500).json({ error: "Failed to create carpool" });
-  }
-}
-
-// 11. Get available carpools
-export async function getAvailableCarpools(req: Request, res: Response) {
-  try {
-    const availableRides = await db
-      .select()
-      .from(rides)
-      .where(gt(rides.seatsAvailable, 0));
-
-    return res.status(200).json({
-      message: "Available carpools retrieved",
-      carpools: availableRides,
-    });
-  } catch (error) {
-    console.error("Error retrieving carpools:", error);
-    res.status(500).json({ error: "Failed to retrieve carpools" });
-  }
-}
-
-// 11. Register for carpool
-export async function joinCarpool(
-  req: Request<any, any, { rideId: number }>,
-  res: Response
-) {
-  try {
-    const { rideId } = req.body;
-    const studentId = (req as any).user.id;
-
-    await db.insert(joinRide).values({
-      studentId,
-      rideId,
-    });
-
-    // Decrease available seats
-    const ride = await db.select().from(rides).where(eq(rides.id, rideId));
-
-    if (ride[0].seatsAvailable! > 0) {
-      await db
-        .update(rides)
-        .set({
-          seatsAvailable: ride[0].seatsAvailable! - 1,
-        })
-        .where(eq(rides.id, rideId));
-    }
-
-    return res.status(201).json({
-      message: "Joined carpool successfully",
-    });
-  } catch (error) {
-    console.error("Error joining carpool:", error);
-    res.status(500).json({ error: "Failed to join carpool" });
-  }
-}
 

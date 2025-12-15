@@ -2,7 +2,7 @@ import { Server, Socket } from "socket.io";
 import { Server as HTTPServer } from "http";
 import db from "../db/connection.ts";
 import { messages, users } from "../db/schema.ts";
-import { eq, or, and } from "drizzle-orm";
+import { eq, or, and, desc } from "drizzle-orm";
 import { verify } from "crypto";
 import { verifyToken } from "../utils/jwt.ts";
 import type { jwtPayLoad } from "../utils/jwt.ts";
@@ -212,6 +212,7 @@ export function initializeSocket(httpServer: HTTPServer) {
                 )
               )
             )
+            .orderBy(desc(messages.sentAt))
             .limit(limit);
 
           callback({

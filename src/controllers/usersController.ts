@@ -66,19 +66,7 @@ export async function changePassword(
 ) {
   try {
     const { currentPassword, newPassword } = req.body;
-    const userId = (req as any).userId; // From auth middleware
-
-    if (!currentPassword || !newPassword) {
-      return res
-        .status(400)
-        .json({ error: "Current password and new password are required" });
-    }
-
-    if (newPassword.length < 6) {
-      return res
-        .status(400)
-        .json({ error: "New password must be at least 6 characters" });
-    }
+    const userId = (req as any).user.id; // From auth middleware
 
     // Get user from database
     const user = await db
@@ -116,3 +104,81 @@ export async function changePassword(
     res.status(500).json({ error: "Failed to change password" });
   }
 }
+
+export async function updateProfilePic(
+  req: Request<{}, any, { bio: string; imgUrl: string }>,
+  res: Response
+) {
+  try {
+    const { imgUrl } = req.body;
+    const userId = (req as any).user.id; // From auth middleware
+
+    console.log("updateProfilePic called with:", { userId, imgUrl });
+
+    if (imgUrl === undefined) {
+      return res
+        .status(400)
+        .json({ error: "Image URL is required" });
+    }
+
+    // Update profile in database
+    const result = await db
+      .update(users)
+      .set({ imgUrl : imgUrl })
+      .where(eq(users.id, userId));
+    
+    console.log("Update result:", result);
+
+    return res.status(200).json({ message: "Profile updated successfully" });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+}
+
+export async function updateProfile(
+  req: Request,
+  res: Response
+) {
+  try {
+    const userData  = req.body;
+    const userId = (req as any).user.id; // From auth middleware
+
+    console.log("updateProfile called with:", { userId, userData });
+
+    // Update profile in database
+    const [user] = await db
+      .update(users)
+      .set({ ...userData })
+      .where(eq(users.id, userId)).returning({
+        id: users.id,
+        email: users.email,
+        fname: users.fname,
+        lname: users.lname,
+        username: users.username,
+      });
+    
+    console.log("Update result:", user);
+
+    return res.status(200).json({ message: "Profile updated successfully", user : {
+        id: user.id,
+        email: user.email,
+        fname: user.fname,
+        lname: user.lname,
+        username: user.username,
+      }, });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+      if ((error as any).cause.code === "23505") {
+      if (/email/i.test(error.cause.constraint)) {
+        return res.status(409).json({ error: "Email already exists" });
+      }
+      if (/username/i.test(error.cause.constraint)) {
+        return res.status(409).json({ error: "Username already exists" });
+      }
+    }
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+}
+
+

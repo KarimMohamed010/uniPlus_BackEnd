@@ -29,6 +29,20 @@
       "when": 1765593958510,
       "tag": "0003_big_robin_chapel",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1765768524324,
+      "tag": "0004_real_electro",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1765769666696,
+      "tag": "0005_perpetual_sunfire",
+      "breakpoints": true
     }
   ]
 }

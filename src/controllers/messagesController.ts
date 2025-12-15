@@ -17,6 +17,7 @@ export async function getNotifications(req: Request, res: Response) {
         receiverId: messages.receiverId,
         fname: users.fname,
         lname: users.lname,
+        imgUrl: users.imgUrl,
       })
       .from(messages)
       .innerJoin(users, eq(messages.senderId, users.id))
@@ -43,6 +44,7 @@ export async function getRecievedMessages(req: Request, res: Response) {
         userId: messages.senderId,
         fname: users.fname,
         lname: users.lname,
+        imgUrl: users.imgUrl,
         lastMessage: messages.content,
         lastMessageTime: messages.sentAt,
         seen: messages.seen,
@@ -86,6 +88,7 @@ export async function getSentMessages(req: Request, res: Response) {
         userId: messages.receiverId,
         fname: users.fname,
         lname: users.lname,
+        imgUrl: users.imgUrl,
         lastMessage: messages.content,
         lastMessageTime: messages.sentAt,
         seen: messages.seen,

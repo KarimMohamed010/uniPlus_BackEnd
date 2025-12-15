@@ -81,6 +81,7 @@ export async function getAllEvents(req: Request, res: Response) {
                 team: {
                     id: teams.id,
                     name: teams.name,
+                    leaderId: teams.leaderId,
                 },
             })
             .from(events)

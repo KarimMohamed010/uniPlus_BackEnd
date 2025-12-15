@@ -181,7 +181,7 @@ export async function rateEvent(
     // Check if student attended
     if (ticket.scanned !== 1) {
       return res.status(400).json({ error: "Cannot submit feedback without attending the event" });
-    }
+    } //***********************************************************************here */
 
     return res.status(200).json({
       message: "Rating submitted successfully",
@@ -345,8 +345,73 @@ export async function getMyUpcomingRegisteredEvents(req: Request, res: Response)
   }
 }
 
-// 15. Get my attended registered events (sorted by most recent first)
+//16. Get all attended events Registered for this student but not scanned
 export async function getMyAttendedRegisteredEvents(req: Request, res: Response) {
+  try {
+    const studentId = (req as any).user.id;
+
+    // Validate student is authenticated
+    if (!studentId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    
+    const attendedEvents = await db
+      .select({
+        eventId: ticketsAndFeedback.eventId,
+        studentId: ticketsAndFeedback.studentId,
+        price: ticketsAndFeedback.price,
+        scanned: ticketsAndFeedback.scanned,
+        rating: ticketsAndFeedback.rating,
+        feedback: ticketsAndFeedback.feedback,
+        dateIssued: ticketsAndFeedback.dateIssued,
+        certificationUrl: ticketsAndFeedback.certificationUrl,
+        event: {
+          id: events.id,
+          title: events.title,
+          description: events.description,
+          type: events.type,
+          startTime: events.startTime,
+          endTime: events.endTime,
+          basePrice: events.basePrice,
+          acceptanceStatus: events.acceptanceStatus,
+        },
+        team: {
+          id: teams.id,
+          name: teams.name,
+        },
+      })
+      .from(ticketsAndFeedback)
+      .innerJoin(events, eq(ticketsAndFeedback.eventId, events.id))
+      .leftJoin(teams, eq(events.teamId, teams.id))
+      .where(
+        and(
+          eq(ticketsAndFeedback.studentId, studentId),
+          eq(ticketsAndFeedback.scanned, 1)
+        )
+      )
+      .orderBy(desc(events.startTime));
+
+    // Check if any attended events found
+    if (attendedEvents.length === 0) {
+      return res.status(200).json({
+        message: "No attended events found",
+        count: 0,
+        events: [],
+      });
+    }
+
+    return res.status(200).json({
+      message: "Attended events retrieved successfully",
+      count: attendedEvents.length,
+      events: attendedEvents,
+    });
+  } catch (error) {
+    console.error("Error retrieving attended events:", error);
+    res.status(500).json({ error: "Failed to retrieve attended events" });
+  }
+}
+export async function getMyOnlyRegisteredEvents(req: Request, res: Response) {
   try {
     const studentId = (req as any).user.id;
 
@@ -387,7 +452,7 @@ export async function getMyAttendedRegisteredEvents(req: Request, res: Response)
       .where(
         and(
           eq(ticketsAndFeedback.studentId, studentId),
-          eq(ticketsAndFeedback.scanned, 1)
+          eq(events.acceptanceStatus, "approved")
         )
       )
       .orderBy(desc(events.startTime));

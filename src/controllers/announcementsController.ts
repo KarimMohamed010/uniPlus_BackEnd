@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import db from "../db/connection.ts";
 import { systemAnnouncements, users } from "../db/schema.ts";
-import { eq, desc } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 
 export async function createAnnouncement(req: Request, res: Response) {
   try {
@@ -46,7 +46,7 @@ export async function getAnnouncements(req: Request, res: Response) {
       })
       .from(systemAnnouncements)
       .leftJoin(users, eq(systemAnnouncements.authorId, users.id))
-      .orderBy(desc(systemAnnouncements.createdAt));
+      .orderBy(asc(systemAnnouncements.createdAt));
 
     return res.status(200).json({ announcements });
   } catch (error) {

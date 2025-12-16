@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import db from "../db/connection.ts";
-import { teams, belongTo, users, students, admins } from "../db/schema.ts";
+import { teams, belongTo, users, students, admins, subscribe } from "../db/schema.ts";
 import { eq, and, sql } from "drizzle-orm";
 
 // Get all teams
@@ -292,3 +292,50 @@ export async function acceptTeam(req: Request<{ teamId: string }>, res: Response
 }
 
 
+
+// 10. Get My Teams (Subscribed)
+export async function getMyTeams(req: Request, res: Response) {
+  try {
+    const userId = (req as any).user.id;
+
+    const myTeams = await db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        description: teams.description,
+        leaderId: teams.leaderId,
+        respondedBy: teams.respondedBy,
+        acceptanceStatus: teams.acceptanceStatus,
+      })
+      .from(subscribe)
+      .innerJoin(teams, eq(subscribe.teamId, teams.id))
+      .where(eq(subscribe.userId, userId));
+
+    res.json(myTeams);
+  } catch (error) {
+    console.error("Error fetching my teams:", error);
+    res.status(500).json({ error: "Failed to fetch my teams" });
+  }
+}
+
+// 11. Get Teams by User ID (Public/Profile View)
+export async function getUserTeams(req: Request<{ userId: string }>, res: Response) {
+  try {
+    const { userId } = req.params;
+
+    const userTeams = await db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        description: teams.description,
+      })
+      .from(subscribe)
+      .innerJoin(teams, eq(subscribe.teamId, teams.id))
+      .where(eq(subscribe.userId, parseInt(userId)));
+
+    res.json(userTeams);
+  } catch (error) {
+    console.error("Error fetching user teams:", error);
+    res.status(500).json({ error: "Failed to fetch user teams" });
+  }
+}

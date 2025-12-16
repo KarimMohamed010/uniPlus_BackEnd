@@ -11,3 +11,6 @@ USER : CONTROLLER AND ROUTES
 profile update
 STUDENT : CONTROLLER AND ROUTES  
 get badges
+//////////////////
+the search bar in dashboard 
+

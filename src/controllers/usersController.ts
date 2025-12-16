@@ -1,8 +1,8 @@
 import db from "../db/connection.ts";
 import { users } from "../db/schema.ts";
 import type { Request, Response } from "express";
-import { eq } from "drizzle-orm";
-import {  hashPassword } from "../utils/password.ts";
+import { eq, ilike, or } from "drizzle-orm";
+import { hashPassword } from "../utils/password.ts";
 import bcrypt from "bcrypt";
 
 export async function usersController() {
@@ -41,6 +41,8 @@ export async function getUserByUsername(
         username: users.username,
         fname: users.fname,
         lname: users.lname,
+        bio: users.bio,
+        imgUrl: users.imgUrl,
       })
       .from(users)
       .where(eq(users.username, username))
@@ -57,6 +59,79 @@ export async function getUserByUsername(
   } catch (error) {
     console.error("Error searching user:", error);
     res.status(500).json({ error: "Failed to search user" });
+  }
+}
+
+export async function getUserById(
+  req: Request<{ id: string }, any, any>,
+  res: Response
+) {
+  try {
+    const { id } = req.params;
+
+    if (!id || String(parseInt(id)) !== id) {
+      return res.status(400).json({ error: "Valid User ID is required" });
+    }
+
+    const user = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        fname: users.fname,
+        lname: users.lname,
+        bio: users.bio,
+        imgUrl: users.imgUrl,
+        email: users.email, // Ensure email is fetched if needed
+      })
+      .from(users)
+      .where(eq(users.id, parseInt(id)))
+      .limit(1);
+
+    if (user.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.status(200).json({
+      message: "User found",
+      user: user[0],
+    });
+  } catch (error) {
+    console.error("Error searching user by ID:", error);
+    res.status(500).json({ error: "Failed to search user" });
+  }
+}
+
+export async function searchUsers(req: Request, res: Response) {
+  try {
+    const { query } = req.query;
+
+    if (!query || typeof query !== "string") {
+      return res.status(400).json({ error: "Search query is required" });
+    }
+
+    // ilike for case-insensitive matching
+    const results = await db
+      .select({
+        id: users.id,
+        fname: users.fname,
+        lname: users.lname,
+        username: users.username,
+        imgUrl: users.imgUrl,
+      })
+      .from(users)
+      .where(
+        or(
+          ilike(users.fname, `%${query}%`),
+          ilike(users.lname, `%${query}%`),
+          ilike(users.username, `%${query}%`)
+        )
+      )
+      .limit(10);
+
+    return res.status(200).json({ users: results });
+  } catch (error) {
+    console.error("Error searching users:", error);
+    res.status(500).json({ error: "Failed to search users" });
   }
 }
 
@@ -124,9 +199,9 @@ export async function updateProfilePic(
     // Update profile in database
     const result = await db
       .update(users)
-      .set({ imgUrl : imgUrl })
+      .set({ imgUrl: imgUrl })
       .where(eq(users.id, userId));
-    
+
     console.log("Update result:", result);
 
     return res.status(200).json({ message: "Profile updated successfully" });
@@ -141,7 +216,7 @@ export async function updateProfile(
   res: Response
 ) {
   try {
-    const userData  = req.body;
+    const userData = req.body;
     const userId = (req as any).user.id; // From auth middleware
 
     console.log("updateProfile called with:", { userId, userData });
@@ -156,20 +231,24 @@ export async function updateProfile(
         fname: users.fname,
         lname: users.lname,
         username: users.username,
+        bio: users.bio,
       });
-    
+
     console.log("Update result:", user);
 
-    return res.status(200).json({ message: "Profile updated successfully", user : {
+    return res.status(200).json({
+      message: "Profile updated successfully", user: {
         id: user.id,
         email: user.email,
         fname: user.fname,
         lname: user.lname,
         username: user.username,
-      }, });
+        bio: user.bio,
+      },
+    });
   } catch (error) {
     console.error("Error updating profile:", error);
-      if ((error as any).cause.code === "23505") {
+    if ((error as any).cause.code === "23505") {
       if (/email/i.test(error.cause.constraint)) {
         return res.status(409).json({ error: "Email already exists" });
       }

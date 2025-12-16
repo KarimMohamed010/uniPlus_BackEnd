@@ -1,7 +1,19 @@
 import type { Request, Response } from "express";
 import db from "../db/connection.ts";
 import { and, desc, eq, gte, isNotNull, lte, sql } from "drizzle-orm";
-import { admins, events, teams, ticketsAndFeedback } from "../db/schema.ts";
+import {
+  admins,
+  apply,
+  comments,
+  events,
+  messages,
+  posts,
+  rides,
+  students,
+  teams,
+  ticketsAndFeedback,
+  users,
+} from "../db/schema.ts";
 import { z } from "zod";
 
 // Input validation schemas
@@ -139,6 +151,124 @@ export const getParticipationReport = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Failed to generate participation report',
+    });
+  }
+};
+
+export const getManagerialReport = async (req: Request, res: Response) => {
+  try {
+    if (!(await requireAdmin(req))) {
+      return res.status(403).json({ error: "Only admins can view reports" });
+    }
+
+    const [
+      usersAgg,
+      studentsAgg,
+      adminsAgg,
+      teamsAgg,
+      eventsAgg,
+      registrationsAgg,
+      postsAgg,
+      commentsAgg,
+      messagesAgg,
+      ridesAgg,
+      applicationsAgg,
+    ] = await Promise.all([
+      db.select({ value: sql<number>`COUNT(*)` }).from(users),
+      db.select({ value: sql<number>`COUNT(*)` }).from(students),
+      db.select({ value: sql<number>`COUNT(*)` }).from(admins),
+      db.select({ value: sql<number>`COUNT(*)` }).from(teams),
+      db
+        .select({
+          total: sql<number>`COUNT(*)`,
+          approved: sql<number>`SUM(CASE WHEN ${events.acceptanceStatus} = 'approved' THEN 1 ELSE 0 END)`,
+          pending: sql<number>`SUM(CASE WHEN ${events.acceptanceStatus} = 'pending' THEN 1 ELSE 0 END)`,
+          rejected: sql<number>`SUM(CASE WHEN ${events.acceptanceStatus} = 'rejected' THEN 1 ELSE 0 END)`,
+        })
+        .from(events),
+      db
+        .select({
+          totalRegistrations: sql<number>`COUNT(*)`,
+          uniqueRegistrants: sql<number>`COUNT(DISTINCT ${ticketsAndFeedback.studentId})`,
+          totalCheckins: sql<number>`SUM(CASE WHEN ${ticketsAndFeedback.scanned} = 1 THEN 1 ELSE 0 END)`,
+          avgTicketPrice: sql<number>`AVG(${ticketsAndFeedback.price})`,
+          minTicketPrice: sql<number>`MIN(${ticketsAndFeedback.price})`,
+          maxTicketPrice: sql<number>`MAX(${ticketsAndFeedback.price})`,
+          avgRating: sql<number>`AVG(${ticketsAndFeedback.rating})`,
+          feedbackCount: sql<number>`COUNT(${ticketsAndFeedback.feedback})`,
+        })
+        .from(ticketsAndFeedback),
+      db.select({ value: sql<number>`COUNT(*)` }).from(posts),
+      db.select({ value: sql<number>`COUNT(*)` }).from(comments),
+      db.select({ value: sql<number>`COUNT(*)` }).from(messages),
+      db.select({ value: sql<number>`COUNT(*)` }).from(rides),
+      db.select({ value: sql<number>`COUNT(*)` }).from(apply),
+    ]);
+
+    const totalUsers = Number(usersAgg[0]?.value ?? 0);
+    const totalStudents = Number(studentsAgg[0]?.value ?? 0);
+    const totalAdmins = Number(adminsAgg[0]?.value ?? 0);
+    const totalTeams = Number(teamsAgg[0]?.value ?? 0);
+    const totalPosts = Number(postsAgg[0]?.value ?? 0);
+    const totalComments = Number(commentsAgg[0]?.value ?? 0);
+    const totalMessages = Number(messagesAgg[0]?.value ?? 0);
+    const totalRides = Number(ridesAgg[0]?.value ?? 0);
+    const totalApplications = Number(applicationsAgg[0]?.value ?? 0);
+
+    const totalEvents = Number(eventsAgg[0]?.total ?? 0);
+    const approvedEvents = Number(eventsAgg[0]?.approved ?? 0);
+    const pendingEvents = Number(eventsAgg[0]?.pending ?? 0);
+    const rejectedEvents = Number(eventsAgg[0]?.rejected ?? 0);
+
+    const totalRegistrations = Number(registrationsAgg[0]?.totalRegistrations ?? 0);
+    const uniqueRegistrants = Number(registrationsAgg[0]?.uniqueRegistrants ?? 0);
+    const totalCheckins = Number(registrationsAgg[0]?.totalCheckins ?? 0);
+
+    const avgTicketPriceRaw = registrationsAgg[0]?.avgTicketPrice;
+    const minTicketPriceRaw = registrationsAgg[0]?.minTicketPrice;
+    const maxTicketPriceRaw = registrationsAgg[0]?.maxTicketPrice;
+    const avgRatingRaw = registrationsAgg[0]?.avgRating;
+    const feedbackCount = Number(registrationsAgg[0]?.feedbackCount ?? 0);
+
+    const avgTicketPrice = avgTicketPriceRaw ? Number(Number(avgTicketPriceRaw).toFixed(2)) : 0;
+    const minTicketPrice = minTicketPriceRaw ? Number(minTicketPriceRaw) : 0;
+    const maxTicketPrice = maxTicketPriceRaw ? Number(maxTicketPriceRaw) : 0;
+    const avgRating = avgRatingRaw ? Number(Number(avgRatingRaw).toFixed(1)) : 0;
+
+    const checkinRate = totalRegistrations > 0 ? Number(((totalCheckins / totalRegistrations) * 100).toFixed(1)) : 0;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalUsers,
+        totalStudents,
+        totalAdmins,
+        totalTeams,
+        totalEvents,
+        approvedEvents,
+        pendingEvents,
+        rejectedEvents,
+        totalRegistrations,
+        uniqueRegistrants,
+        totalCheckins,
+        checkinRate,
+        avgTicketPrice,
+        minTicketPrice,
+        maxTicketPrice,
+        avgRating,
+        feedbackCount,
+        totalPosts,
+        totalComments,
+        totalMessages,
+        totalRides,
+        totalApplications,
+      },
+    });
+  } catch (error) {
+    console.error("Error generating managerial report:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to generate managerial report",
     });
   }
 };

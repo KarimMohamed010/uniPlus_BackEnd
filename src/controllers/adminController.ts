@@ -12,8 +12,59 @@ import { eq, and, sql } from "drizzle-orm";
 import type { NewUser } from "../db/schema.ts";
 import { hashPassword } from "../utils/password.ts";
 import type { AuthenticatedRequest } from "../middleware/auth.ts";
+import { id } from "zod/v4/locales";
+import { parse } from "path";
+
+export async function getAllAdmins(req: Request<any, any, any>, res: Response) {
+  try {
+    const adminList = await db
+      .select({
+        id: users.id,
+        fname: users.fname,
+        lname: users.lname,
+        username: users.username,
+        email: users.email,
+      })
+      .from(users)
+      .innerJoin(admins, eq(users.id, admins.id));
+    return res.status(200).json({
+      message: "Admins retrieved",
+      admins: adminList,
+    });
+  } catch (error) {
+    console.error("Error retrieving admins:", error);
+    res.status(500).json({ error: "Failed to retrieve admins" });
+  }
+}
+
+export async function deleteAdmin(
+  req: Request<{id : string }, any, any>,
+  res: Response
+) {
+  try {
+    const { id } = req.params;
+    
+    const [admin] = await db
+      .delete(users)
+      .where(eq(users.id, parseInt(id)))
+      .returning({
+        id: users.id,
+        fname: users.fname,
+        lname: users.lname,
+        email: users.email,
+        username: users.username,
+      });
+    return res.status(200).json({
+      message: "Admin removed successfully",
+    });
+  } catch (error) {
+    console.error("Error removing admin:", error);
+    res.status(500).json({ error: "Failed to remove admin" });
+  }
+}
 
 // 1. Approve or reject teams
+
 export async function approveTeam(
   req: Request<{ teamId: string }, any, { acceptanceStatus: string }>,
   res: Response

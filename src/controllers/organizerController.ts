@@ -17,12 +17,42 @@ import {
 import { eq, and, sql } from "drizzle-orm";
 
 // 1. Verify QR code / Check-in attendee
-export async function checkInAttendee(
+export async function verifyQr(
   req: Request<any, any, { eventId: number; studentId: number }>,
   res: Response
 ) {
   try {
     const { eventId, studentId } = req.body;
+    const userId = (req as any).user.id;
+    const [event] = await db
+      .select({
+        eventId: events.id,
+        eventTitle: events.title,
+        teamId: events.teamId,
+        teamName: teams.name,
+        leaderId : teams.leaderId,
+      })
+      .from(events)
+      .innerJoin(teams, eq(events.teamId, teams.id))
+      .where(eq(events.id, eventId));
+
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+    // Check if user is team organizer
+    const membership = await db
+      .select()
+      .from(belongTo)
+      .where(eq(belongTo.studentId, userId));
+// not organizer or leader
+    if (membership.length === 0 && event.leaderId !== userId) {
+      return res
+        .status(403)
+        .json({ error: "Only event organizers can check in attendees" });
+    }
+    // Check if ticket exists
+
+      
 
     const [ticket] = await db
       .update(ticketsAndFeedback)
@@ -85,7 +115,9 @@ export async function issueCertificate(
       );
 
     if (membership.length === 0) {
-      return res.status(403).json({ error: "Only event organizers can issue certificates" });
+      return res
+        .status(403)
+        .json({ error: "Only event organizers can issue certificates" });
     }
 
     // Check if ticket exists and student attended
@@ -105,7 +137,11 @@ export async function issueCertificate(
 
     // Only issue certificate to students who attended
     if (existingTicket.scanned !== 1) {
-      return res.status(400).json({ error: "Cannot issue certificate to student who did not attend" });
+      return res
+        .status(400)
+        .json({
+          error: "Cannot issue certificate to student who did not attend",
+        });
     }
 
     // Issue certificate
@@ -172,8 +208,3 @@ export async function respondToApplication(
     res.status(500).json({ error: "Failed to respond to application" });
   }
 }
-
-
-
-
-

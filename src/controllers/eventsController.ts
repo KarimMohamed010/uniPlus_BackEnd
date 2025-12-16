@@ -214,6 +214,19 @@ export async function deleteEvent(req: Request<{ eventId: string }>, res: Respon
                     eq(belongTo.role, "organizer")
                 )
             );
+            
+            const teamLeader = await db
+            .select()
+            .from(teams)
+            .where(
+                and(
+                    eq(teams.id, eventRecord[0].teamId!),
+                    eq(teams.leaderId, userId)
+                )
+            );
+        if (membership.length === 0 && teamLeader.length === 0) {
+            return res.status(403).json({ error: "Unauthorized to delete this event" });
+        }
 
         if (membership.length === 0) {
             return res.status(403).json({ error: "Unauthorized to delete this event" });

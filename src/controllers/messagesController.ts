@@ -17,6 +17,7 @@ export async function getNotifications(req: Request, res: Response) {
         receiverId: messages.receiverId,
         fname: users.fname,
         lname: users.lname,
+        username: users.username,
         imgUrl: users.imgUrl,
       })
       .from(messages)
@@ -44,6 +45,7 @@ export async function getRecievedMessages(req: Request, res: Response) {
         userId: messages.senderId,
         fname: users.fname,
         lname: users.lname,
+        username: users.username,
         imgUrl: users.imgUrl,
         lastMessage: messages.content,
         lastMessageTime: messages.sentAt,
@@ -88,6 +90,7 @@ export async function getSentMessages(req: Request, res: Response) {
         userId: messages.receiverId,
         fname: users.fname,
         lname: users.lname,
+        username: users.username,
         imgUrl: users.imgUrl,
         lastMessage: messages.content,
         lastMessageTime: messages.sentAt,

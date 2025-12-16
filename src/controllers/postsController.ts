@@ -466,3 +466,53 @@ export async function getPostById(req: Request<{ postId: string }>, res: Respons
         res.status(500).json({ error: "Failed to fetch post" });
     }
 }
+
+// 9. Get posts by User ID
+export async function getUserPosts(req: Request<{ userId: string }>, res: Response) {
+    try {
+        const { userId } = req.params;
+
+        const postsData = await db
+            .select({
+                id: posts.id,
+                description: posts.description,
+                issuedAt: posts.issuedAt,
+                author: {
+                    id: users.id,
+                    fname: users.fname,
+                    lname: users.lname,
+                    imgUrl: users.imgUrl,
+                },
+                team: {
+                    id: teams.id,
+                    name: teams.name,
+                },
+                media: sql`COALESCE(
+          json_agg(
+            json_build_object(
+              'url', ${postmedia.url}, 
+              'type', ${postmedia.type},
+              'description', ${postmedia.description}
+            )
+          ) FILTER (WHERE ${postmedia.url} IS NOT NULL), 
+          '[]'
+        )`,
+            })
+            .from(posts)
+            .innerJoin(createPost, eq(posts.id, createPost.postId))
+            .innerJoin(users, eq(createPost.userId, users.id))
+            .innerJoin(teams, eq(createPost.teamId, teams.id))
+            .leftJoin(postmedia, eq(posts.id, postmedia.postId))
+            .where(eq(createPost.userId, parseInt(userId)))
+            .groupBy(posts.id, users.id, teams.id)
+            .orderBy(desc(posts.issuedAt));
+
+        return res.status(200).json({
+            message: "User posts retrieved successfully",
+            posts: postsData,
+        });
+    } catch (error) {
+        console.error("Error fetching user posts:", error);
+        res.status(500).json({ error: "Failed to fetch user posts" });
+    }
+}

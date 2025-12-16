@@ -34,6 +34,7 @@ export async function signUp(req: Request<any, any, NewUser>, res: Response) {
           lname: users.lname,
           imgUrl: users.imgUrl,
           username: users.username,
+          bio: users.bio,
         });
 
       // Always create as student
@@ -58,6 +59,7 @@ export async function signUp(req: Request<any, any, NewUser>, res: Response) {
         lname: user.lname,
         imgUrl: user.imgUrl,
         username: user.username,
+        bio: user.bio,
         roles: {
           global: "student",
           team: [],
@@ -97,6 +99,7 @@ export async function signIn(
         username: users.username,
         imgUrl: users.imgUrl,
         userPassword: users.userPassword,
+        bio: users.bio,
       })
       .from(users)
       .where(eq(users.email, userEmail));
@@ -171,6 +174,7 @@ export async function signIn(
         lname: user.lname,
         imgUrl: user.imgUrl,
         username: user.username,
+        bio: user.bio,
         roles: {
           global: globalRole,
           team: teamRoles,

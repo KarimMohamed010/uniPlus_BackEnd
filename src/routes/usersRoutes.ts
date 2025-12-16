@@ -12,8 +12,12 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(6, "New password must be at least 6 characters"),
 });
 
+// Search users
+router.get("/search", usersController.searchUsers);
+
 // Get user by username 
 router.get("/:username", usersController.getUserByUsername);
+router.get("/id/:id", usersController.getUserById);
 
 // Get user by id 
 router.get("/id/:id", usersController.getUserById);

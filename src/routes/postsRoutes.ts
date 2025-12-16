@@ -23,6 +23,7 @@ router.get("/", postsController.getAllPosts);
 router.get("/feed", postsController.getUserFeed);
 router.get("/:postId", postsController.getPostById);
 router.get("/team/:teamId", postsController.getTeamPosts);
+router.get("/user/:userId", postsController.getUserPosts);
 
 // POST endpoints
 router.post(

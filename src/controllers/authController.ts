@@ -3,10 +3,10 @@ import env from "../../env.ts";
 import bcrypt from "bcrypt";
 import db from "../db/connection.ts";
 import { generateToken } from "../utils/jwt.ts";
-import { users, students, admins, belongTo } from "../db/schema.ts";
+import { users, students, admins, belongTo, teams } from "../db/schema.ts";
 import type { messages, NewUser, User } from "../db/schema.ts";
 import type { Request, Response } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { hashPassword } from "../utils/password.ts";
 import { DrizzleQueryError } from "drizzle-orm";
 import type { errorMonitor } from "events";
@@ -19,33 +19,33 @@ export async function signUp(req: Request<any, any, NewUser>, res: Response) {
     const hashedPass = await hashPassword(userData.userPassword);
 
     // Create user as student
-    
+
     const user = await db.transaction(async (tx) => {
-    const [result] = await tx
-      .insert(users)
-      .values({
-        ...userData,
-        userPassword: hashedPass,
-      })
-      .returning({
-        id: users.id,
-        email: users.email,
-        fname: users.fname,
-        lname: users.lname,
-        imgUrl: users.imgUrl,
-        username: users.username,
-      });
-     
-    // Always create as student
-    await tx.insert(students).values({ id: result.id });
-    return result;
+      const [result] = await tx
+        .insert(users)
+        .values({
+          ...userData,
+          userPassword: hashedPass,
+        })
+        .returning({
+          id: users.id,
+          email: users.email,
+          fname: users.fname,
+          lname: users.lname,
+          imgUrl: users.imgUrl,
+          username: users.username,
+        });
+
+      // Always create as student
+      await tx.insert(students).values({ id: result.id });
+      return result;
     });
     const token = await generateToken({
       id: user.id,
       email: user.email,
       roles: {
         global: "student",
-        team: []
+        team: [],
       },
     });
 
@@ -144,6 +144,15 @@ export async function signIn(
       .from(belongTo)
       .where(eq(belongTo.studentId, user.id));
 
+    const result = await db
+      .select({
+        teamId: teams.id,
+        role: sql<string>`'leader'`,
+      })
+      .from(teams)
+      .where(eq(teams.leaderId, user.id));
+
+    teamRoles.push(...result);
     const token = await generateToken({
       id: user.id,
       email: user.email,

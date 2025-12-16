@@ -17,7 +17,40 @@ import {
 } from "../db/schema.ts";
 import { eq, and, gt, isNotNull, desc, asc } from "drizzle-orm";
 
-
+export async function getAvailableEvents(req: Request, res: Response) {
+  try {
+    const currentDate = new Date().toISOString();
+    const availableEvents = await db
+      .select({
+        id: events.id,
+        title: events.title,
+        description: events.description,
+        type: events.type,
+        startTime: events.startTime,
+        endTime: events.endTime,
+        basePrice: events.basePrice,
+        acceptanceStatus: events.acceptanceStatus,
+        teamId: events.teamId,
+        teamName: teams.name,
+      })
+      .from(events)
+      .leftJoin(teams, eq(events.teamId, teams.id))
+      .where(
+        and(
+          gt(events.startTime, currentDate),
+          eq(events.acceptanceStatus, "approved")
+        )
+      )
+      .orderBy(asc(events.startTime));
+    return res.status(200).json({
+      message: "Available events retrieved successfully",
+      events: availableEvents,
+    });
+  } catch (error) {
+    console.error("Error retrieving available events:", error);
+    res.status(500).json({ error: "Failed to retrieve available events" });
+  }
+}
 // 1. Register for event
 export async function registerForEvent(
   req: Request<any, any, NewTicketsAndFeedback>,

@@ -100,5 +100,5 @@ router.delete(
 );
 router.delete("/:eventId/room", eventsController.removeRoomFromEvent);
 // 8. Cancel event registration
-router.delete("/events/:eventId/cancel", eventsController.cancelRegistration);
+router.delete("/:eventId/cancel", eventsController.cancelRegistration);
 export default router;

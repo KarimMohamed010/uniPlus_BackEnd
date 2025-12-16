@@ -26,7 +26,7 @@ const rateEventSchema = z.object({
 router.get("/my/upcoming", studentController.getMyUpcomingRegisteredEvents);
 router.get("/my/attended", studentController.getMyAttendedRegisteredEvents);
 router.get("/my/registration", studentController.getMyOnlyRegisteredEvents);
-router.get("/:ticketId", studentController.getMyTicket);
+router.get("/event/:eventId", studentController.getMyTicket); // Get my ticket for a specific event
 
 // POST endpoints
 router.post(

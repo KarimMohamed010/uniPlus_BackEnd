@@ -27,9 +27,7 @@ const approveItemSchema = z.object({
 });
 
 // Schema for adding admin
-const addAdminSchema = z.object({
-  userId: z.string(),
-});
+const addAdminSchema = signUpSchema;
 
 // Schema for issuing warnings
 const issueWarningSchema = z.object({

@@ -56,20 +56,23 @@ export async function addAdmin(req: Request<any, any, NewUser>, res: Response) {
     const hashedPass = await hashPassword(userData.userPassword);
 
     // Create user as student
-    const [user] = await db
-      .insert(users)
-      .values({
-        ...userData,
-        userPassword: hashedPass,
-      })
-      .returning({
-        id: users.id,
-        email: users.email,
-        fname: users.fname,
-        lname: users.lname,
-      });
+    const user = await db.transaction(async (tx) => {
+      const [result] = await tx
+        .insert(users)
+        .values({
+          ...userData,
+          userPassword: hashedPass,
+        })
+        .returning({
+          id: users.id,
+          email: users.email,
+          fname: users.fname,
+          lname: users.lname,
+        });
 
-    await db.insert(admins).values({ id: user.id });
+      await tx.insert(admins).values({ id: result.id });
+      return result;
+    });
 
     if (!user) {
       return res.status(500).json({ error: "Failed to create admin user" });
@@ -92,11 +95,14 @@ export async function addAdmin(req: Request<any, any, NewUser>, res: Response) {
     console.error("Error adding admin:", error);
 
     // Check if email already exists
-    if ((error as any).code === "23505") {
-      return res.status(409).json({ error: "Email already exists" });
-    }
-
-    res.status(500).json({ error: "Failed to add admin" });
+    if ((error as any).cause.code === "23505") {
+      if (/email/i.test(error.cause.constraint)) {
+        return res.status(409).json({ error: "Email already exists" });
+      }
+      if (/username/i.test(error.cause.constraint)) {
+        return res.status(409).json({ error: "Username already exists" });
+      }
+    } else return res.status(500).json({ error: "Failed to add admin" });
   }
 }
 

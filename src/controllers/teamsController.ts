@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import db from "../db/connection.ts";
-import { teams, belongTo, users, students, admins } from "../db/schema.ts";
+import { teams, belongTo, users, students, admins,badges } from "../db/schema.ts";
 import { eq, and, sql } from "drizzle-orm";
 
 // Get all teams
@@ -292,3 +292,32 @@ export async function acceptTeam(req: Request<{ teamId: string }>, res: Response
 }
 
 
+// get all team's members (not organizer nor member)
+export async function getStudentsWithBadges(req: Request, res: Response) {
+    try {
+        const studentsWithBadges = await db
+            .select({
+                studentId: badges.studentId,
+                teamId: badges.teamId,
+                badgeType: badges.type,
+                points: badges.points,
+                expDate: badges.expDate,
+                usageNum: badges.usageNum,
+                // Student info from users table
+                fname: users.fname,
+                lname: users.lname,
+                email: users.email,
+                imgUrl: users.imgUrl,
+            })
+            .from(badges)
+            .innerJoin(students, eq(badges.studentId, students.id))
+            .innerJoin(users, eq(students.id, users.id));
+        return res.status(200).json({
+            message: "Students with badges retrieved",
+            students: studentsWithBadges,
+        });
+    } catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ error: "Failed to fetch students with badges" });
+    }
+}

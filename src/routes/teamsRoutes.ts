@@ -13,6 +13,7 @@ const createTeamSchema = z.object({
 const updateTeamSchema = createTeamSchema.partial();
 
 router.get("/", teamsController.getAllTeams);
+router.get("/badges", teamsController.getStudentsWithBadges); // Get all students with badges
 router.get("/:id", teamsController.getTeamById);
 router.get("/:id/members", teamsController.getTeamMembers);
 

@@ -27,9 +27,7 @@ const approveItemSchema = z.object({
 });
 
 // Schema for adding admin
-const addAdminSchema = z.object({
-  userId: z.string(),
-});
+const addAdminSchema = signUpSchema;
 
 // Schema for issuing warnings
 const issueWarningSchema = z.object({
@@ -63,7 +61,7 @@ const toggleUserStatusSchema = z.object({
 router.post("/", validateBody(addAdminSchema), adminController.addAdmin);
 
 // 4. Get all admins
-// router.get("/list", adminController.getAllAdmins);
+router.get("/", adminController.getAllAdmins);
 
 // 5. Update admin info
 router.patch(
@@ -126,4 +124,5 @@ router.post(
 // 17. Get received support messages
 router.get("/messages", adminController.getAdminMessages);
 
+router.delete("/:id", adminController.deleteAdmin);
 export default router;

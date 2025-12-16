@@ -12,8 +12,59 @@ import { eq, and, sql } from "drizzle-orm";
 import type { NewUser } from "../db/schema.ts";
 import { hashPassword } from "../utils/password.ts";
 import type { AuthenticatedRequest } from "../middleware/auth.ts";
+import { id } from "zod/v4/locales";
+import { parse } from "path";
+
+export async function getAllAdmins(req: Request<any, any, any>, res: Response) {
+  try {
+    const adminList = await db
+      .select({
+        id: users.id,
+        fname: users.fname,
+        lname: users.lname,
+        username: users.username,
+        email: users.email,
+      })
+      .from(users)
+      .innerJoin(admins, eq(users.id, admins.id));
+    return res.status(200).json({
+      message: "Admins retrieved",
+      admins: adminList,
+    });
+  } catch (error) {
+    console.error("Error retrieving admins:", error);
+    res.status(500).json({ error: "Failed to retrieve admins" });
+  }
+}
+
+export async function deleteAdmin(
+  req: Request<{id : string }, any, any>,
+  res: Response
+) {
+  try {
+    const { id } = req.params;
+    
+    const [admin] = await db
+      .delete(users)
+      .where(eq(users.id, parseInt(id)))
+      .returning({
+        id: users.id,
+        fname: users.fname,
+        lname: users.lname,
+        email: users.email,
+        username: users.username,
+      });
+    return res.status(200).json({
+      message: "Admin removed successfully",
+    });
+  } catch (error) {
+    console.error("Error removing admin:", error);
+    res.status(500).json({ error: "Failed to remove admin" });
+  }
+}
 
 // 1. Approve or reject teams
+
 export async function approveTeam(
   req: Request<{ teamId: string }, any, { acceptanceStatus: string }>,
   res: Response
@@ -56,20 +107,23 @@ export async function addAdmin(req: Request<any, any, NewUser>, res: Response) {
     const hashedPass = await hashPassword(userData.userPassword);
 
     // Create user as student
-    const [user] = await db
-      .insert(users)
-      .values({
-        ...userData,
-        userPassword: hashedPass,
-      })
-      .returning({
-        id: users.id,
-        email: users.email,
-        fname: users.fname,
-        lname: users.lname,
-      });
+    const user = await db.transaction(async (tx) => {
+      const [result] = await tx
+        .insert(users)
+        .values({
+          ...userData,
+          userPassword: hashedPass,
+        })
+        .returning({
+          id: users.id,
+          email: users.email,
+          fname: users.fname,
+          lname: users.lname,
+        });
 
-    await db.insert(admins).values({ id: user.id });
+      await tx.insert(admins).values({ id: result.id });
+      return result;
+    });
 
     if (!user) {
       return res.status(500).json({ error: "Failed to create admin user" });
@@ -92,11 +146,14 @@ export async function addAdmin(req: Request<any, any, NewUser>, res: Response) {
     console.error("Error adding admin:", error);
 
     // Check if email already exists
-    if ((error as any).code === "23505") {
-      return res.status(409).json({ error: "Email already exists" });
-    }
-
-    res.status(500).json({ error: "Failed to add admin" });
+    if ((error as any).cause.code === "23505") {
+      if (/email/i.test(error.cause.constraint)) {
+        return res.status(409).json({ error: "Email already exists" });
+      }
+      if (/username/i.test(error.cause.constraint)) {
+        return res.status(409).json({ error: "Username already exists" });
+      }
+    } else return res.status(500).json({ error: "Failed to add admin" });
   }
 }
 

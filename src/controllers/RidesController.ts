@@ -285,3 +285,22 @@ export async function deleteRide(req: Request<{ rideId: string }>, res: Response
         res.status(500).json({ error: "Failed to delete ride" });
     }
 }
+
+// 7. Get joined rides
+export async function getJoinedRides(req: Request, res: Response) {
+    try {
+        const userId = (req as any).user.id;
+        const joinedRides = await db
+            .select(
+                {
+                    rideId: joinRide.rideId,
+                }
+            )
+            .from(joinRide)
+            .where(eq(joinRide.studentId, userId));
+        return res.status(200).json({ message: "Joined rides retrieved successfully", joinedRides });
+    } catch (error) {
+        console.error("Error fetching joined rides:", error);
+        res.status(500).json({ error: "Failed to fetch joined rides" });
+    }
+}

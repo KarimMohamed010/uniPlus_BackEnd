@@ -86,7 +86,7 @@ export async function getAllEvents(req: Request, res: Response) {
             })
             .from(events)
             .innerJoin(teams, eq(events.teamId, teams.id))
-            .where(eq(events.acceptanceStatus, "approved"))
+            .where( eq(events.acceptanceStatus, "approved"))
             .orderBy(desc(events.startTime));
 
         return res.status(200).json({
@@ -105,20 +105,35 @@ export async function getTeamEvents(req: Request<{ teamId: string }>, res: Respo
         const { teamId } = req.params;
 
         const eventsData = await db
-            .select()
+            .select({
+                id: events.id,
+                title: events.title,
+                description: events.description,
+                type: events.type,
+                issuedAt: events.issuedAt,
+                startTime: events.startTime,
+                endTime: events.endTime,
+                basePrice: events.basePrice,
+                acceptanceStatus: events.acceptanceStatus,
+                team: {
+                    id: teams.id,
+                    name: teams.name,
+                    leaderId: teams.leaderId,
+                },
+            })
             .from(events)
-            .where(eq(events.teamId, parseInt(teamId)))
+            .innerJoin(teams, eq(events.teamId, teams.id))
+            .where(and (eq(events.acceptanceStatus, "approved"), eq(events.teamId, parseInt(teamId))))
             .orderBy(desc(events.startTime));
 
         return res.status(200).json({
-            message: "Team events retrieved successfully",
+            message: "Events retrieved successfully",
             events: eventsData,
         });
     } catch (error) {
-        console.error("Error fetching team events:", error);
-        res.status(500).json({ error: "Failed to fetch team events" });
-    }
-}
+        console.error("Error fetching events:", error);
+        res.status(500).json({ error: "Failed to fetch events" });
+}}
 
 // 4. Update an event (organizer role only)
 export async function updateEvent(req: Request<{ eventId: string }>, res: Response) {

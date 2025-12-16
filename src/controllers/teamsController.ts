@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import db from "../db/connection.ts";
-import { teams, belongTo, users, students, admins, subscribe } from "../db/schema.ts";
+import { teams, belongTo, users, students, admins, badges, subscribe } from "../db/schema.ts";
 import { eq, and, sql } from "drizzle-orm";
 
 // Get all teams
@@ -84,23 +84,56 @@ export async function updateTeam(req: Request, res: Response) {
   }
 }
 
-// 4. Get team members (Admin and Team Leader only)
+// // 4. Get team members (Admin and Team Leader only)
+// export async function getTeamMembers(req: Request<{ id: string }>, res: Response) {
+//   try {
+//     const { id } = req.params;
+//     const userId = (req as any).user.id;
+//     const teamId = parseInt(id);
+
+//     // 1. Get Team
+//     const team = await db.select().from(teams).where(eq(teams.id, teamId));
+//     if (team.length === 0) return res.status(404).json({ error: "Team not found" });
+
+//     // 2. Check Permissions (Leader or Admin)
+//     const isAdmin = await db.select().from(admins).where(eq(admins.id, userId));
+
+//     if (team[0].leaderId !== userId && isAdmin.length === 0) {
+//       return res.status(403).json({ error: "Only the team leader or an admin can view members" });
+//     }
+
+//     const members = await db
+//       .select({
+//         studentId: belongTo.studentId,
+//         role: belongTo.role,
+//         fname: users.fname,
+//         lname: users.lname,
+//         email: users.email
+//       })
+//       .from(belongTo)
+//       .innerJoin(students, eq(belongTo.studentId, students.id))
+//       .innerJoin(users, eq(students.id, users.id))
+//       .where(eq(belongTo.teamId, teamId));
+
+//     res.json({
+//       message: "Team members retrieved successfully",
+//       members
+//     });
+//   } catch (error) {
+//     console.error("Error fetching team members:", error);
+//     res.status(500).json({ error: "Failed to fetch team members" });
+//   }
+// }
+
+// 4. Get team members (All authenticated users) sorry if i cant change this 
 export async function getTeamMembers(req: Request<{ id: string }>, res: Response) {
   try {
     const { id } = req.params;
-    const userId = (req as any).user.id;
     const teamId = parseInt(id);
 
-    // 1. Get Team
+    // 1. Get Team (Still needed to ensure the team exists)
     const team = await db.select().from(teams).where(eq(teams.id, teamId));
     if (team.length === 0) return res.status(404).json({ error: "Team not found" });
-
-    // 2. Check Permissions (Leader or Admin)
-    const isAdmin = await db.select().from(admins).where(eq(admins.id, userId));
-
-    if (team[0].leaderId !== userId && isAdmin.length === 0) {
-      return res.status(403).json({ error: "Only the team leader or an admin can view members" });
-    }
 
     const members = await db
       .select({
@@ -292,7 +325,35 @@ export async function acceptTeam(req: Request<{ teamId: string }>, res: Response
 }
 
 
-
+// get all team's members (not organizer nor member)
+export async function getStudentsWithBadges(req: Request, res: Response) {
+  try {
+    const studentsWithBadges = await db
+      .select({
+        studentId: badges.studentId,
+        teamId: badges.teamId,
+        badgeType: badges.type,
+        points: badges.points,
+        expDate: badges.expDate,
+        usageNum: badges.usageNum,
+        // Student info from users table
+        fname: users.fname,
+        lname: users.lname,
+        email: users.email,
+        imgUrl: users.imgUrl,
+      })
+      .from(badges)
+      .innerJoin(students, eq(badges.studentId, students.id))
+      .innerJoin(users, eq(students.id, users.id));
+    return res.status(200).json({
+      message: "Students with badges retrieved",
+      students: studentsWithBadges,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Failed to fetch students with badges" });
+  }
+}
 // 10. Get My Teams (Subscribed)
 export async function getMyTeams(req: Request, res: Response) {
   try {

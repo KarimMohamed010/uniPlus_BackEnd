@@ -19,6 +19,9 @@ router.get("/search", usersController.searchUsers);
 router.get("/:username", usersController.getUserByUsername);
 router.get("/id/:id", usersController.getUserById);
 
+// Get user by id 
+router.get("/id/:id", usersController.getUserById);
+
 // Change password
 router.patch(
   "/password",

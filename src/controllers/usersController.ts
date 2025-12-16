@@ -5,25 +5,6 @@ import { eq, ilike, or } from "drizzle-orm";
 import { hashPassword } from "../utils/password.ts";
 import bcrypt from "bcrypt";
 
-export async function usersController() {
-  const uploadProfilePic = async (req, res) => {
-    const { cdnUrl } = req.body;
-    await db
-      .insert(users)
-      .values({ ...req.body, imgUrl: cdnUrl })
-      .returning({
-        id: users.id,
-        email: users.email,
-        fname: users.fname,
-        lname: users.lname,
-        imgUrl: users.imgUrl,
-      });
-    return res.status(200).json({
-      message: "Done added to db",
-    });
-  };
-}
-
 export async function getUserByUsername(
   req: Request<{ username: string }, any, any>,
   res: Response
@@ -62,6 +43,8 @@ export async function getUserByUsername(
   }
 }
 
+
+
 export async function getUserById(
   req: Request<{ id: string }, any, any>,
   res: Response
@@ -69,10 +52,13 @@ export async function getUserById(
   try {
     const { id } = req.params;
 
-    if (!id || String(parseInt(id)) !== id) {
-      return res.status(400).json({ error: "Valid User ID is required" });
+    // 1. Basic validation and type conversion
+    const userId = parseInt(id, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: "Invalid user ID format" });
     }
 
+    // 2. Database Query
     const user = await db
       .select({
         id: users.id,
@@ -81,23 +67,25 @@ export async function getUserById(
         lname: users.lname,
         bio: users.bio,
         imgUrl: users.imgUrl,
-        email: users.email, // Ensure email is fetched if needed
+        email: users.email,
       })
       .from(users)
-      .where(eq(users.id, parseInt(id)))
+      .where(eq(users.id, userId))
       .limit(1);
 
+    // 3. Check result
     if (user.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
 
+    // 4. Success response
     return res.status(200).json({
-      message: "User found",
+      message: "User found by ID",
       user: user[0],
     });
   } catch (error) {
-    console.error("Error searching user by ID:", error);
-    res.status(500).json({ error: "Failed to search user" });
+    console.error("Error retrieving user by ID:", error);
+    res.status(500).json({ error: "Failed to retrieve user by ID" });
   }
 }
 

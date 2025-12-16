@@ -15,7 +15,7 @@ import {
   type NewTicketsAndFeedback,
   belongTo,
 } from "../db/schema.ts";
-import { eq, and, gt, isNotNull, desc, asc } from "drizzle-orm";
+import { eq, and, gt, isNotNull, desc, asc,sql } from "drizzle-orm";
 
 export async function getAvailableEvents(req: Request, res: Response) {
   try {
@@ -53,29 +53,130 @@ export async function getAvailableEvents(req: Request, res: Response) {
 }
 // 1. Register for event
 export async function registerForEvent(
-  req: Request<any, any, NewTicketsAndFeedback>,
+  req: Request<any, any, { eventId: number | string }>,
   res: Response
 ) {
   try {
-    const { eventId } = req.body;
     const studentId = (req as any).user.id;
+    const eventId = Number(req.body.eventId);
 
-    const [ticket] = await db
-      .insert(ticketsAndFeedback)
-      .values({
-        eventId,
-        studentId,
-        price: 0, // Default price
-      })
-      .returning();
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: "Invalid Event ID" });
+    }
 
+    // START TRANSACTION
+    // We wrap logic in a transaction to ensure either ALL succeeds or NONE succeeds
+    const result = await db.transaction(async (tx) => {
+      
+      // 1. Check for Duplicate Registration (Inside TX for safety)
+      const existingTicket = await tx.query.ticketsAndFeedback.findFirst({
+        where: and(
+          eq(ticketsAndFeedback.eventId, eventId),
+          eq(ticketsAndFeedback.studentId, studentId)
+        ),
+      });
+
+      if (existingTicket) {
+        throw new Error("ALREADY_REGISTERED"); // Throw to exit transaction
+      }
+
+      // 2. Get Event Data
+      const eventData = await tx.query.events.findFirst({
+        where: eq(events.id, eventId),
+        columns: { basePrice: true },
+      });
+
+      if (!eventData) {
+        throw new Error("EVENT_NOT_FOUND");
+      }
+
+      let finalPrice = Number(eventData.basePrice);
+      let studentIDBadge = null; // Track if we need to decrement a badge
+      let teamIDBadge = null; // Track if we need to decrement a badge
+
+      // 3. Get User Badge
+      const userBadge = await tx.query.badges.findFirst({
+        where: eq(badges.studentId, studentId),
+      });
+
+      // 4. Apply Calculation Logic AND Prepare Update
+      if (userBadge && userBadge.usageNum && userBadge.usageNum > 0) {
+        const badgeType = String(userBadge.type).toLowerCase();
+        let discountApplied = false;
+
+        switch (badgeType) {
+          case "rising star":
+            finalPrice = finalPrice * 0.9;
+            discountApplied = true;
+            break;
+          case "old star":
+            finalPrice = finalPrice * 0.8;
+            discountApplied = true;
+            break;
+          case "top fan":
+            finalPrice = finalPrice * 0.7;
+            discountApplied = true;
+            break;
+        }
+
+        if (discountApplied) {
+            studentIDBadge = userBadge.studentId;
+            teamIDBadge = userBadge.teamId;
+        }
+      }
+
+      const dbPrice = Math.round(finalPrice);
+
+      // 5. Decrement Badge Usage (CRITICAL MISSING STEP)
+      if (studentIDBadge && teamIDBadge) {
+        await tx
+          .update(badges)
+          .set({ usageNum: sql`${badges.usageNum} - 1` }) // Atomic decrement
+          .where(and (eq(badges.studentId, studentIDBadge) , eq(badges.teamId, teamIDBadge)));
+          
+      }
+
+      // 6. Insert Ticket
+      const [ticket] = await tx
+        .insert(ticketsAndFeedback)
+        .values({
+          eventId,
+          studentId,
+          certificationUrl:null,
+          dateIssued: new Date().toISOString(), // Convert Date to ISO string
+          price: dbPrice,
+          scanned:0,
+          rating:null,
+          feedback:null,
+        })
+        .returning();
+
+      return { ticket, finalPrice: dbPrice };
+    });
+
+    // SUCCESS RESPONSE
     return res.status(201).json({
       message: "Registered for event successfully",
-      ticket,
+      ticket: result.ticket,
+      finalPrice: result.finalPrice,
     });
-  } catch (error) {
-    console.error("Error registering for event:", error);
-    res.status(500).json({ error: "Failed to register for event" });
+
+  } catch (error: any) {
+    console.error("REGISTER ERROR:", error);
+
+    // Handle Transaction Errors
+    if (error.message === "ALREADY_REGISTERED") {
+      return res.status(409).json({ error: "You are already registered for this event." });
+    }
+    if (error.message === "EVENT_NOT_FOUND") {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    // Generic Fallback
+    return res.status(500).json({
+      error: "Registration failed",
+      details: error.message,
+    });
   }
 }
 

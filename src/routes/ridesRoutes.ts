@@ -5,13 +5,15 @@ import {
     getRideById,
     joinRideHandler,
     leaveRideHandler,
-    deleteRide
+    deleteRide,
+    getJoinedRides,
 } from "../controllers/RidesController.ts";
 
 const router = Router();
 
 router.post("/", createRide);
 router.get("/", getAllRides);
+router.get("/joined", getJoinedRides);
 router.get("/:rideId", getRideById);
 
 router.post("/:rideId/join", joinRideHandler);

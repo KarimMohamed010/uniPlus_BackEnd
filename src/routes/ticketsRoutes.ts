@@ -22,7 +22,7 @@ const rateEventSchema = z.object({
 });
 
 // GET endpoints
-router.get("/", studentController.getAvailableEvents);
+// router.get("/", studentController.getAvailableEvents);
 router.get("/my/upcoming", studentController.getMyUpcomingRegisteredEvents);
 router.get("/my/attended", studentController.getMyAttendedRegisteredEvents);
 router.get("/my/registration",studentController.getMyOnlyRegisteredEvents);

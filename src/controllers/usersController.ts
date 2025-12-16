@@ -1,7 +1,7 @@
 import db from "../db/connection.ts";
 import { users } from "../db/schema.ts";
 import type { Request, Response } from "express";
-import { eq, ilike, or } from "drizzle-orm";
+import { eq, ilike, or, sql } from "drizzle-orm";
 import { hashPassword } from "../utils/password.ts";
 import bcrypt from "bcrypt";
 
@@ -111,7 +111,8 @@ export async function searchUsers(req: Request, res: Response) {
         or(
           ilike(users.fname, `%${query}%`),
           ilike(users.lname, `%${query}%`),
-          ilike(users.username, `%${query}%`)
+          ilike(users.username, `%${query}%`),
+          sql`concat(${users.fname}, ' ', ${users.lname}) ILIKE ${`%${query}%`}`
         )
       )
       .limit(10);

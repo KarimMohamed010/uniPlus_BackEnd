@@ -60,6 +60,51 @@ export async function getUserByUsername(
   }
 }
 
+
+
+export async function getUserById(
+  req: Request<{ id: string }, any, any>,
+  res: Response
+) {
+  try {
+    const { id } = req.params;
+
+    // 1. Basic validation and type conversion
+    const userId = parseInt(id, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: "Invalid user ID format" });
+    }
+
+    // 2. Database Query
+    // ⚠️ IMPORTANT: Only select non-sensitive, public fields!
+    const user = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        fname: users.fname,
+        lname: users.lname,
+        email: users.email
+      })
+      .from(users)
+      .where(eq(users.id, userId)) // <-- Key change: query by ID
+      .limit(1);
+
+    // 3. Check result
+    if (user.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // 4. Success response
+    return res.status(200).json({
+      message: "User found by ID",
+      user: user[0],
+    });
+  } catch (error) {
+    console.error("Error retrieving user by ID:", error);
+    res.status(500).json({ error: "Failed to retrieve user by ID" });
+  }
+}
+
 export async function changePassword(
   req: Request<{}, any, { currentPassword: string; newPassword: string }>,
   res: Response

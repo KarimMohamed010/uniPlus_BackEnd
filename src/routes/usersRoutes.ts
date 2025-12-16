@@ -15,6 +15,9 @@ const changePasswordSchema = z.object({
 // Get user by username 
 router.get("/:username", usersController.getUserByUsername);
 
+// Get user by id 
+router.get("/id/:id", usersController.getUserById);
+
 // Change password
 router.patch(
   "/password",

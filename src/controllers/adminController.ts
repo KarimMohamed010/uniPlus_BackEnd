@@ -2,7 +2,14 @@ import type { Request, Response } from "express";
 import db from "../db/connection.ts";
 import {
   admins,
+  belongTo,
   events,
+  rooms,
+  speak,
+  speakers,
+  students,
+  subscribe,
+  takePlace,
   teams,
   users,
   messages,
@@ -35,6 +42,322 @@ export async function getAllAdmins(req: Request<any, any, any>, res: Response) {
     console.error("Error retrieving admins:", error);
     res.status(500).json({ error: "Failed to retrieve admins" });
   }
+
+}
+
+export async function getPendingApprovals(req: Request, res: Response) {
+  try {
+    const pendingEvents = await db
+      .select({
+        id: events.id,
+        name: events.title,
+        type: sql<string>`'event'`,
+        submittedBy: sql<string>`COALESCE(${users.fname} || ' ' || ${users.lname}, ${teams.name})`,
+        date: events.issuedAt,
+        teamName: teams.name,
+      })
+      .from(events)
+      .innerJoin(teams, eq(events.teamId, teams.id))
+      .leftJoin(users, eq(teams.leaderId, users.id))
+      .where(eq(events.acceptanceStatus, "pending"));
+
+    const pendingTeams = await db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        type: sql<string>`'team'`,
+        submittedBy: sql<string>`COALESCE(${users.fname} || ' ' || ${users.lname}, '')`,
+        date: sql<string>`NULL`,
+      })
+      .from(teams)
+      .leftJoin(users, eq(teams.leaderId, users.id))
+      .where(eq(teams.acceptanceStatus, "pending"));
+
+    return res.status(200).json({
+      message: "Pending approvals retrieved",
+      items: [...pendingEvents, ...pendingTeams],
+    });
+  } catch (error) {
+    console.error("Error retrieving pending approvals:", error);
+    return res.status(500).json({ error: "Failed to retrieve pending approvals" });
+  }
+}
+
+export async function approveOrRejectItem(
+  req: Request<{ itemType: string; id: string }, any, { approved: boolean; reason?: string }>,
+  res: Response
+) {
+  try {
+    const { itemType, id } = req.params;
+    const { approved } = req.body;
+    const adminId = (req as any).user.id;
+
+    const status = approved ? "approved" : "rejected";
+
+    if (itemType === "team") {
+      if (approved) {
+        const team = await db.select().from(teams).where(eq(teams.id, parseInt(id)));
+        if (team.length === 0) return res.status(404).json({ error: "Team not found" });
+
+        const duplicateTeam = await db
+          .select()
+          .from(teams)
+          .where(
+            and(
+              eq(teams.name, team[0].name),
+              eq(teams.leaderId, team[0].leaderId),
+              eq(teams.acceptanceStatus, "approved"),
+              sql`${teams.id} != ${parseInt(id)}`
+            )
+          );
+
+        if (duplicateTeam.length > 0) {
+          return res.status(400).json({
+            error: "Cannot approve team: Another approved team with this name already exists.",
+          });
+        }
+      }
+
+      const [team] = await db
+        .update(teams)
+        .set({ acceptanceStatus: status, respondedBy: adminId })
+        .where(eq(teams.id, parseInt(id)))
+        .returning();
+
+      if (!team) return res.status(404).json({ error: "Team not found" });
+
+      return res.status(200).json({ message: `Team ${status}`, team });
+    }
+
+    if (itemType === "event") {
+      const [event] = await db
+        .update(events)
+        .set({ acceptanceStatus: status, respondedBy: adminId })
+        .where(eq(events.id, parseInt(id)))
+        .returning();
+
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      return res.status(200).json({ message: `Event ${status}`, event });
+    }
+
+    return res.status(400).json({ error: "Invalid item type" });
+  } catch (error) {
+    console.error("Error approving/rejecting item:", error);
+    return res.status(500).json({ error: "Failed to process approval" });
+  }
+}
+
+export async function deleteApprovalItem(
+  req: Request<{ itemType: string; id: string }>,
+  res: Response
+) {
+  try {
+    const { itemType, id } = req.params;
+
+    if (itemType === "event") {
+      await db.delete(events).where(eq(events.id, parseInt(id)));
+      return res.status(200).json({ message: "Event deleted" });
+    }
+
+    if (itemType === "team") {
+      await db.delete(teams).where(eq(teams.id, parseInt(id)));
+      return res.status(200).json({ message: "Team deleted" });
+    }
+
+    return res.status(400).json({ error: "Invalid item type" });
+  } catch (error) {
+    console.error("Error deleting item:", error);
+    return res.status(500).json({ error: "Failed to delete item" });
+  }
+}
+
+export async function getApprovalItemDetails(
+  req: Request<{ itemType: string; id: string }>,
+  res: Response
+) {
+  try {
+    const { itemType, id } = req.params;
+
+    if (itemType === "team") {
+      const [team] = await db
+        .select({
+          id: teams.id,
+          name: teams.name,
+          description: teams.description,
+          leaderId: teams.leaderId,
+          acceptanceStatus: teams.acceptanceStatus,
+          leader: {
+            id: users.id,
+            fname: users.fname,
+            lname: users.lname,
+            email: users.email,
+            username: users.username,
+          },
+        })
+        .from(teams)
+        .leftJoin(users, eq(teams.leaderId, users.id))
+        .where(eq(teams.id, parseInt(id)));
+
+      if (!team) return res.status(404).json({ error: "Team not found" });
+
+      const members = await db
+        .select({
+          studentId: belongTo.studentId,
+          role: belongTo.role,
+          fname: users.fname,
+          lname: users.lname,
+          email: users.email,
+          username: users.username,
+        })
+        .from(belongTo)
+        .innerJoin(students, eq(belongTo.studentId, students.id))
+        .innerJoin(users, eq(students.id, users.id))
+        .where(eq(belongTo.teamId, parseInt(id)));
+
+      const eventsForTeam = await db
+        .select({
+          id: events.id,
+          title: events.title,
+          startTime: events.startTime,
+          endTime: events.endTime,
+          type: events.type,
+          acceptanceStatus: events.acceptanceStatus,
+        })
+        .from(events)
+        .where(eq(events.teamId, parseInt(id)));
+
+      const [subscriberAgg] = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(subscribe)
+        .where(eq(subscribe.teamId, parseInt(id)));
+
+      return res.status(200).json({
+        message: "Team details",
+        team,
+        members,
+        events: eventsForTeam,
+        subscribers: Number(subscriberAgg?.count ?? 0),
+      });
+    }
+
+    if (itemType === "event") {
+      const [event] = await db
+        .select({
+          id: events.id,
+          title: events.title,
+          description: events.description,
+          type: events.type,
+          issuedAt: events.issuedAt,
+          startTime: events.startTime,
+          endTime: events.endTime,
+          basePrice: events.basePrice,
+          acceptanceStatus: events.acceptanceStatus,
+          team: {
+            id: teams.id,
+            name: teams.name,
+            leaderId: teams.leaderId,
+          },
+          teamLeader: {
+            id: users.id,
+            fname: users.fname,
+            lname: users.lname,
+            email: users.email,
+            username: users.username,
+          },
+        })
+        .from(events)
+        .innerJoin(teams, eq(events.teamId, teams.id))
+        .leftJoin(users, eq(teams.leaderId, users.id))
+        .where(eq(events.id, parseInt(id)));
+
+      if (!event) return res.status(404).json({ error: "Event not found" });
+
+      const organizers = await db
+        .select({
+          studentId: belongTo.studentId,
+          fname: users.fname,
+          lname: users.lname,
+          email: users.email,
+          username: users.username,
+        })
+        .from(belongTo)
+        .innerJoin(students, eq(belongTo.studentId, students.id))
+        .innerJoin(users, eq(students.id, users.id))
+        .where(and(eq(belongTo.teamId, event.team.id), eq(belongTo.role, "organizer")));
+
+      const registrations = await db
+        .select({
+          studentId: ticketsAndFeedback.studentId,
+          studentName: sql`${users.fname} || ' ' || ${users.lname}`,
+          email: users.email,
+          price: ticketsAndFeedback.price,
+          scanned: ticketsAndFeedback.scanned,
+          rating: ticketsAndFeedback.rating,
+          feedback: ticketsAndFeedback.feedback,
+          dateIssued: ticketsAndFeedback.dateIssued,
+        })
+        .from(ticketsAndFeedback)
+        .innerJoin(students, eq(ticketsAndFeedback.studentId, students.id))
+        .innerJoin(users, eq(students.id, users.id))
+        .where(eq(ticketsAndFeedback.eventId, parseInt(id)));
+
+      const speakersForEvent = await db
+        .select({
+          id: speakers.id,
+          name: speakers.name,
+          bio: speakers.bio,
+          email: speakers.email,
+          fname: speakers.fname,
+          lname: speakers.lname,
+          contact: speakers.contact,
+        })
+        .from(speak)
+        .innerJoin(speakers, eq(speak.speakerId, speakers.id))
+        .where(eq(speak.eventId, parseInt(id)));
+
+      const [roomRow] = await db
+        .select({
+          id: rooms.id,
+          name: rooms.name,
+          capacity: rooms.capacity,
+          location: rooms.location,
+        })
+        .from(takePlace)
+        .innerJoin(rooms, eq(takePlace.roomId, rooms.id))
+        .where(eq(takePlace.eventId, parseInt(id)));
+
+      const [stats] = await db
+        .select({
+          totalRegistrations: sql<number>`COUNT(*)`,
+          totalCheckins: sql<number>`SUM(CASE WHEN ${ticketsAndFeedback.scanned} = 1 THEN 1 ELSE 0 END)`,
+          avgRating: sql<number>`AVG(${ticketsAndFeedback.rating})`,
+          feedbackCount: sql<number>`COUNT(${ticketsAndFeedback.feedback})`,
+        })
+        .from(ticketsAndFeedback)
+        .where(eq(ticketsAndFeedback.eventId, parseInt(id)));
+
+      return res.status(200).json({
+        message: "Event details",
+        event,
+        organizers,
+        speakers: speakersForEvent,
+        room: roomRow ?? null,
+        registrations,
+        stats: {
+          totalRegistrations: Number(stats?.totalRegistrations ?? 0),
+          totalCheckins: Number(stats?.totalCheckins ?? 0),
+          avgRating: stats?.avgRating ? Number(Number(stats.avgRating).toFixed(1)) : 0,
+          feedbackCount: Number(stats?.feedbackCount ?? 0),
+        },
+      });
+    }
+
+    return res.status(400).json({ error: "Invalid item type" });
+  } catch (error) {
+    console.error("Error retrieving item details:", error);
+    return res.status(500).json({ error: "Failed to retrieve item details" });
+  }
+
 }
 
 export async function deleteAdmin(

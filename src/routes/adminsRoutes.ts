@@ -95,6 +95,12 @@ router.get(
 // 10. Get team engagement report
 router.get("/reports/teams/:teamId", adminController.getTeamEngagementReport);
 
+// Approval management
+router.get("/approvals/pending", adminController.getPendingApprovals);
+router.patch("/approvals/:itemType/:id", adminController.approveOrRejectItem);
+router.delete("/approvals/:itemType/:id", adminController.deleteApprovalItem);
+router.get("/approvals/:itemType/:id", adminController.getApprovalItemDetails);
+
 // 11. Issue warning to user
 router.post(
   "/warnings",

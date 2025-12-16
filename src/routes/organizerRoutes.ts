@@ -22,12 +22,7 @@ const respondToApplicationSchema = z.object({
   status: z.enum(["approved", "rejected"]),
 });
 
-// 3. Check in attendee via QR code
-router.post(
-  "/events/:eventId/checkin",
-  validateBody(checkInAttendeeSchema),
-  organizerController.checkInAttendee
-);
+
 
 // 5. Issue certificate to attendee
 router.post(

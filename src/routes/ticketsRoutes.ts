@@ -2,7 +2,7 @@ import { Router } from "express";
 import { validateBody } from "../middleware/validation.ts";
 import { z } from "zod";
 import * as studentController from "../controllers/studentController.ts";
-
+import { verifyQr } from "../controllers/organizerController.ts";
 const router = Router();
 
 // Schemas
@@ -45,6 +45,11 @@ router.post(
   "/rate",
   validateBody(rateEventSchema),
   studentController.rateEvent
+);
+
+router.patch(
+  "/verifyQr",
+  verifyQr
 );
 
 export default router;

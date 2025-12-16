@@ -195,9 +195,7 @@ export async function rateEvent(
     }
 
     // Check if student attended
-    if (ticket.scanned !== 1) {
-      return res.status(400).json({ error: "Cannot submit feedback without attending the event" });
-    } //***********************************************************************here */
+    
 
     return res.status(200).json({
       message: "Rating submitted successfully",

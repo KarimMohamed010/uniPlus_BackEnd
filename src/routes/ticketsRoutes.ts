@@ -25,7 +25,7 @@ const rateEventSchema = z.object({
 // router.get("/", studentController.getAvailableEvents);
 router.get("/my/upcoming", studentController.getMyUpcomingRegisteredEvents);
 router.get("/my/attended", studentController.getMyAttendedRegisteredEvents);
-router.get("/my/registration",studentController.getMyOnlyRegisteredEvents);
+router.get("/my/registration", studentController.getMyOnlyRegisteredEvents);
 router.get("/:ticketId", studentController.getMyTicket);
 
 // POST endpoints
@@ -41,6 +41,10 @@ router.post(
 );
 
 
-
+router.post(
+  "/rate",
+  validateBody(rateEventSchema),
+  studentController.rateEvent
+);
 
 export default router;

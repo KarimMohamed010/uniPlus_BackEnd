@@ -8,6 +8,7 @@ import {
     admins,
     belongTo,
     users,
+    teams,
 } from "../db/schema.ts";
 import { eq, and, desc } from "drizzle-orm";
 import { awardPoints } from "../utils/badgeUtils.ts";
@@ -22,21 +23,32 @@ export async function addComment(
         const userId = (req as any).user.id;
 
         // 1. Check if the post exists and get its teamId
-        const postRecord = await db
+        const [postRecord] = await db
             .select({
                 id: posts.id,
                 teamId: createPost.teamId,
+                leaderId: teams.leaderId
             })
             .from(posts)
             .innerJoin(createPost, eq(posts.id, createPost.postId))
+            .innerJoin(teams, eq(teams.id, createPost.teamId))
             .where(eq(posts.id, postId));
 
-        if (postRecord.length === 0) {
+        if (!postRecord) {
             return res.status(404).json({ error: "Post not found" });
         }
 
-        const teamId = postRecord[0].teamId;
+        const teamId = postRecord.teamId;
 
+        const adminRecord = await db.select().from(admins).where(eq(admins.id, userId));
+        const isAdmin = adminRecord.length > 0;
+
+        const isLeader = postRecord.leaderId === userId;
+        const membership = await db
+                .select()
+                .from(belongTo)
+                .where(and(eq(belongTo.teamId, teamId), eq(belongTo.studentId, userId)));
+        
         // 2. Check if user is subscribed to the team
         const subscription = await db
             .select()
@@ -48,8 +60,19 @@ export async function addComment(
                 )
             );
 
-        if (subscription.length === 0) {
-            return res.status(403).json({ error: "You must be subscribed to the team to comment." });
+        // if (subscription.length === 0) {
+        //     return res.status(403).json({ error: "You must be subscribed to the team to comment." });
+        // }
+        const canComment =
+            isAdmin ||
+            isLeader ||
+            membership.some((m) => m.role === "organizer" || m.role === "mediaTeam")||
+            subscription.length > 0;
+
+        if (!canComment) {
+            return res.status(403).json({
+                error: "Only team leaders, organizers, media team, or admins can post in this team",
+            });
         }
 
         // 3. Create the comment
@@ -64,8 +87,8 @@ export async function addComment(
             .returning();
 
         // Award points for creating a comment (5 points)
-        if (postRecord[0].teamId) {
-            await awardPoints(userId, postRecord[0].teamId, 5);
+        if (postRecord.teamId) {
+            await awardPoints(userId, postRecord.teamId, 5);
         }
 
         return res.status(201).json({

@@ -35,6 +35,12 @@ const assignRoomSchema = z.object({
   roomId: z.number(),
 });
 
+const addRoomSchema = z.object({
+  name: z.string().min(1).max(50),
+  capacity: z.number().min(1),
+  location: z.string().optional(),
+});
+
 const searchEventSchema = z.object({
   query: z.string(),
 });
@@ -42,6 +48,7 @@ const searchEventSchema = z.object({
 // GET endpoints
 router.get("/", eventsController.getAllEvents);
 router.get("/pending", eventsController.getPendingEvents);
+router.get("/rooms", eventsController.getAllRooms);
 router.get("/search", validateBody(searchEventSchema), eventsController.searchEvents);
 router.get("/type/:type", eventsController.getEventsByType);
 router.get("/date/:date", eventsController.getEventsByDate);
@@ -73,6 +80,12 @@ router.post(
   "/events/rate",
   validateBody(rateEventSchema),
   eventsController.rateEvent
+);
+// Add room (Admin only)
+router.post(
+  "/rooms",
+  validateBody(addRoomSchema),
+  eventsController.addRoom
 );
 
 // PATCH endpoints

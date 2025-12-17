@@ -13,9 +13,9 @@ import {
     rooms,
     takePlace,
 } from "../db/schema.ts";
-import { eq, desc, and, sql, isNotNull, like, gt, lt, asc } from "drizzle-orm";
+import { eq, desc, and, sql, isNotNull, like, gt, lt, asc, or } from "drizzle-orm";
 
-// 1. Create an event ( organizer role only )
+// 1. Create an event ( organizer & Leader role only )
 export async function createEvent(
     req: Request<any, any, { title: string; description?: string; type?: string; startTime: string; endTime: string; basePrice?: number; teamId: number }>,
     res: Response
@@ -32,12 +32,12 @@ export async function createEvent(
                 and(
                     eq(belongTo.studentId, userId),
                     eq(belongTo.teamId, teamId),
-                    eq(belongTo.role, "organizer")
+                    or(eq(belongTo.role, "organizer"), eq(teams.leaderId, userId))
                 )
             );
 
         if (membership.length === 0) {
-            return res.status(403).json({ error: "Only team organizers can create events" });
+            return res.status(403).json({ error: "Only team organizers and Leader can create events" });
         }
 
         const [newEvent] = await db
@@ -86,7 +86,7 @@ export async function getAllEvents(req: Request, res: Response) {
             })
             .from(events)
             .innerJoin(teams, eq(events.teamId, teams.id))
-            .where( eq(events.acceptanceStatus, "approved"))
+            .where(eq(events.acceptanceStatus, "approved"))
             .orderBy(desc(events.startTime));
 
         return res.status(200).json({
@@ -123,7 +123,7 @@ export async function getTeamEvents(req: Request<{ teamId: string }>, res: Respo
             })
             .from(events)
             .innerJoin(teams, eq(events.teamId, teams.id))
-            .where(and (eq(events.acceptanceStatus, "approved"), eq(events.teamId, parseInt(teamId))))
+            .where(and(eq(events.acceptanceStatus, "approved"), eq(events.teamId, parseInt(teamId))))
             .orderBy(desc(events.startTime));
 
         return res.status(200).json({
@@ -133,7 +133,8 @@ export async function getTeamEvents(req: Request<{ teamId: string }>, res: Respo
     } catch (error) {
         console.error("Error fetching events:", error);
         res.status(500).json({ error: "Failed to fetch events" });
-}}
+    }
+}
 
 // 4. Update an event (organizer role only)
 export async function updateEvent(req: Request<{ eventId: string }>, res: Response) {
@@ -1375,5 +1376,67 @@ export async function getEventAttendeeStats(
     } catch (error) {
         console.error("Error retrieving stats:", error);
         res.status(500).json({ error: "Failed to retrieve statistics" });
+    }
+}
+
+// Add a new room (Admin only)
+export async function addRoom(
+    req: Request<any, any, { name: string; capacity: number; location?: string }>,
+    res: Response
+) {
+    try {
+        const { name, capacity, location } = req.body;
+        const userId = (req as any).user.id;
+
+        // Check if user is admin
+        const adminRecord = await db
+            .select()
+            .from(admins)
+            .where(eq(admins.id, userId));
+
+        if (adminRecord.length === 0) {
+            return res.status(403).json({ error: "Only admins can add rooms" });
+        }
+
+        const [newRoom] = await db
+            .insert(rooms)
+            .values({
+                name,
+                capacity,
+                location:"Faculty of Engineering Cairo University",
+            })
+            .returning();
+
+        return res.status(201).json({
+            message: "Room added successfully",
+            room: newRoom,
+        });
+    } catch (error) {
+        console.error("Error adding room:", error);
+        res.status(500).json({ error: "Failed to add room" });
+    }
+}
+
+// Get all rooms
+export async function getAllRooms(req: Request, res: Response) {
+    try {
+        const allRooms = await db
+            .select({
+                
+                name: rooms.name,
+                capacity: rooms.capacity,
+                location: rooms.location,
+            })
+            .from(rooms);
+
+        return res.status(200).json({
+            message: "Rooms retrieved successfully",
+            rooms: allRooms,
+            
+        });
+        console.log("Error");
+    } catch (error) {
+        console.error("Error fetching rooms:", error);
+        res.status(500).json({ error: "Failed to fetch rooms" });
     }
 }

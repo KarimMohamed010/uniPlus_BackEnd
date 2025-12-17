@@ -29,6 +29,9 @@ router.delete("/:id/members", teamsController.removeMember);
 router.delete("/:id/leave", teamsController.leaveTeam);
 router.delete("/:id", teamsController.deleteTeam);
 
+router.post("/:id/subscribe", teamsController.subscribeToTeam);
+router.delete("/:id/subscribe", teamsController.unsubscribeFromTeam);
+
 router.patch("/:teamId/accept", teamsController.acceptTeam);
 
 export default router;

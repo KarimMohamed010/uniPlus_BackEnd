@@ -7,23 +7,46 @@ const router = Router();
 
 // Schemas
 const createPostSchema = z.object({
-  title: z.string().min(1),
-  content: z.string().min(1),
-  teamId: z.number().optional(),
+  description: z.string().min(1),
+  teamId: z.number(),
+  media: z
+    .array(
+      z.object({
+        url: z.string().min(1),
+        type: z.string().min(1),
+        description: z.string().optional(),
+        id: z.number().optional(),
+      })
+    )
+    .optional(),
 });
 
-const updatePostSchema = createPostSchema.partial();
+const updatePostSchema = z
+  .object({
+    description: z.string().min(1).optional(),
+    media: z
+      .array(
+        z.object({
+          id: z.number(),
+          url: z.string().min(1),
+          type: z.string().min(1),
+          description: z.string().optional(),
+        })
+      )
+      .optional(),
+  })
+  .partial();
 
 const reportPostSchema = z.object({
-  reason: z.string(),
+  description: z.string().min(1),
 });
 
 // GET endpoints
 router.get("/", postsController.getAllPosts);
 router.get("/feed", postsController.getUserFeed);
-router.get("/:postId", postsController.getPostById);
 router.get("/team/:teamId", postsController.getTeamPosts);
 router.get("/user/:userId", postsController.getUserPosts);
+router.get("/:postId", postsController.getPostById);
 
 // POST endpoints
 router.post(

@@ -4,6 +4,7 @@ import { and, desc, eq, gte, isNotNull, lte, sql } from "drizzle-orm";
 import {
   admins,
   apply,
+  belongTo,
   comments,
   events,
   messages,
@@ -21,6 +22,11 @@ const reportQuerySchema = z.object({
   scope: z.enum(['event', 'team']).default('event'),
   timeRange: z.enum(['week', 'month', 'year', 'all']).default('month'),
   type: z.enum(['participation', 'engagement']).default('participation'),
+});
+
+const teamReportQuerySchema = z.object({
+  scope: z.enum(['event', 'team']).default('event'),
+  timeRange: z.enum(['week', 'month', 'year', 'all']).default('month'),
 });
 
 // Helper function to get date range based on time range
@@ -51,6 +57,216 @@ const getDateRange = (timeRange: string) => {
    const adminRecord = await db.select().from(admins).where(eq(admins.id, userId));
    return adminRecord.length > 0;
  };
+
+const requireTeamReportAccess = async (req: Request, teamId: number) => {
+  const userId = (req as any).user?.id;
+  if (!userId) return false;
+
+  const adminRecord = await db.select().from(admins).where(eq(admins.id, userId));
+  if (adminRecord.length > 0) return true;
+
+  const teamRecord = await db.select().from(teams).where(eq(teams.id, teamId));
+  if (teamRecord.length === 0) return false;
+
+  if (teamRecord[0].leaderId === userId) return true;
+
+  const organizerMembership = await db
+    .select()
+    .from(belongTo)
+    .where(
+      and(
+        eq(belongTo.teamId, teamId),
+        eq(belongTo.studentId, userId),
+        eq(belongTo.role, "organizer")
+      )
+    );
+
+  return organizerMembership.length > 0;
+};
+
+export const getTeamParticipationReport = async (req: Request, res: Response) => {
+  try {
+    const { teamId } = req.params as { teamId: string };
+    const parsedTeamId = parseInt(teamId);
+    if (Number.isNaN(parsedTeamId)) {
+      return res.status(400).json({ error: "Invalid teamId" });
+    }
+
+    const { scope, timeRange } = teamReportQuerySchema.parse(req.query);
+    const { start, end } = getDateRange(timeRange);
+    const startIso = start.toISOString();
+    const endIso = end.toISOString();
+
+    if (!(await requireTeamReportAccess(req, parsedTeamId))) {
+      return res.status(403).json({ error: "Not allowed to view this team's reports" });
+    }
+
+    if (scope === "team") {
+      const rows = await db
+        .select({
+          id: teams.id,
+          name: teams.name,
+          participants: sql<number>`COUNT(DISTINCT ${ticketsAndFeedback.studentId})`,
+          checkins: sql<number>`SUM(CASE WHEN ${ticketsAndFeedback.scanned} = 1 THEN 1 ELSE 0 END)`,
+        })
+        .from(teams)
+        .innerJoin(events, eq(events.teamId, teams.id))
+        .leftJoin(ticketsAndFeedback, eq(ticketsAndFeedback.eventId, events.id))
+        .where(
+          and(
+            eq(teams.id, parsedTeamId),
+            isNotNull(events.startTime),
+            gte(events.startTime, startIso),
+            lte(events.startTime, endIso)
+          )
+        )
+        .groupBy(teams.id, teams.name);
+
+      const data = rows.map((r) => {
+        const participants = Number(r.participants ?? 0);
+        const checkins = Number(r.checkins ?? 0);
+        const attendanceRate = participants > 0 ? Math.round((checkins / participants) * 100) : 0;
+        return {
+          id: r.id,
+          name: r.name,
+          participants,
+          attendanceRate,
+          date: endIso.split("T")[0],
+        };
+      });
+
+      return res.json({ success: true, data });
+    }
+
+    const rows = await db
+      .select({
+        id: events.id,
+        name: events.title,
+        date: events.startTime,
+        participants: sql<number>`COUNT(DISTINCT ${ticketsAndFeedback.studentId})`,
+        checkins: sql<number>`SUM(CASE WHEN ${ticketsAndFeedback.scanned} = 1 THEN 1 ELSE 0 END)`,
+      })
+      .from(events)
+      .leftJoin(ticketsAndFeedback, eq(ticketsAndFeedback.eventId, events.id))
+      .where(
+        and(
+          eq(events.teamId, parsedTeamId),
+          isNotNull(events.startTime),
+          gte(events.startTime, startIso),
+          lte(events.startTime, endIso)
+        )
+      )
+      .groupBy(events.id, events.title, events.startTime)
+      .orderBy(desc(events.startTime));
+
+    const data = rows.map((r) => {
+      const participants = Number(r.participants ?? 0);
+      const checkins = Number(r.checkins ?? 0);
+      const attendanceRate = participants > 0 ? Math.round((checkins / participants) * 100) : 0;
+      return {
+        id: r.id,
+        name: r.name,
+        participants,
+        attendanceRate,
+        date: (r.date ?? endIso).split("T")[0],
+      };
+    });
+
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("Error generating team participation report:", error);
+    return res.status(500).json({ error: "Failed to generate team participation report" });
+  }
+};
+
+export const getTeamEngagementReportScoped = async (req: Request, res: Response) => {
+  try {
+    const { teamId } = req.params as { teamId: string };
+    const parsedTeamId = parseInt(teamId);
+    if (Number.isNaN(parsedTeamId)) {
+      return res.status(400).json({ error: "Invalid teamId" });
+    }
+
+    const { scope, timeRange } = teamReportQuerySchema.parse(req.query);
+    const { start, end } = getDateRange(timeRange);
+    const startIso = start.toISOString();
+    const endIso = end.toISOString();
+
+    if (!(await requireTeamReportAccess(req, parsedTeamId))) {
+      return res.status(403).json({ error: "Not allowed to view this team's reports" });
+    }
+
+    if (scope === "team") {
+      const rows = await db
+        .select({
+          id: teams.id,
+          name: teams.name,
+          participants: sql<number>`COUNT(DISTINCT ${ticketsAndFeedback.studentId})`,
+          engagementScore: sql<number>`AVG(${ticketsAndFeedback.rating})`,
+          totalInteractions: sql<number>`COUNT(${ticketsAndFeedback.feedback})`,
+        })
+        .from(teams)
+        .innerJoin(events, eq(events.teamId, teams.id))
+        .leftJoin(ticketsAndFeedback, eq(ticketsAndFeedback.eventId, events.id))
+        .where(
+          and(
+            eq(teams.id, parsedTeamId),
+            isNotNull(events.startTime),
+            gte(events.startTime, startIso),
+            lte(events.startTime, endIso)
+          )
+        )
+        .groupBy(teams.id, teams.name);
+
+      const data = rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        participants: Number(r.participants ?? 0),
+        engagementScore: r.engagementScore ? Number(Number(r.engagementScore).toFixed(1)) : 0,
+        totalInteractions: Number(r.totalInteractions ?? 0),
+        date: endIso.split("T")[0],
+      }));
+
+      return res.json({ success: true, data });
+    }
+
+    const rows = await db
+      .select({
+        id: events.id,
+        name: events.title,
+        date: events.startTime,
+        participants: sql<number>`COUNT(DISTINCT ${ticketsAndFeedback.studentId})`,
+        engagementScore: sql<number>`AVG(${ticketsAndFeedback.rating})`,
+        totalInteractions: sql<number>`COUNT(${ticketsAndFeedback.feedback})`,
+      })
+      .from(events)
+      .leftJoin(ticketsAndFeedback, eq(ticketsAndFeedback.eventId, events.id))
+      .where(
+        and(
+          eq(events.teamId, parsedTeamId),
+          isNotNull(events.startTime),
+          gte(events.startTime, startIso),
+          lte(events.startTime, endIso)
+        )
+      )
+      .groupBy(events.id, events.title, events.startTime)
+      .orderBy(desc(events.startTime));
+
+    const data = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      participants: Number(r.participants ?? 0),
+      engagementScore: r.engagementScore ? Number(Number(r.engagementScore).toFixed(1)) : 0,
+      totalInteractions: Number(r.totalInteractions ?? 0),
+      date: (r.date ?? endIso).split("T")[0],
+    }));
+
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("Error generating team engagement report:", error);
+    return res.status(500).json({ error: "Failed to generate team engagement report" });
+  }
+};
 
 // Get participation report
 export const getParticipationReport = async (req: Request, res: Response) => {

@@ -400,3 +400,55 @@ export async function getUserTeams(req: Request<{ userId: string }>, res: Respon
     res.status(500).json({ error: "Failed to fetch user teams" });
   }
 }
+
+export async function subscribeToTeam(req: Request<{ id: string }>, res: Response) {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
+    const teamId = parseInt(id);
+
+    if (Number.isNaN(teamId)) {
+      return res.status(400).json({ error: "Invalid team id" });
+    }
+
+    const teamRecord = await db
+      .select()
+      .from(teams)
+      .where(and(eq(teams.id, teamId), eq(teams.acceptanceStatus, "approved")));
+
+    if (teamRecord.length === 0) {
+      return res.status(404).json({ error: "Team not found" });
+    }
+
+    await db.insert(subscribe).values({ userId, teamId });
+
+    return res.status(201).json({ message: "Subscribed successfully" });
+  } catch (error: any) {
+    if (error?.code === "23505") {
+      return res.status(200).json({ message: "Already subscribed" });
+    }
+    console.error("Error subscribing to team:", error);
+    return res.status(500).json({ error: "Failed to subscribe" });
+  }
+}
+
+export async function unsubscribeFromTeam(req: Request<{ id: string }>, res: Response) {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
+    const teamId = parseInt(id);
+
+    if (Number.isNaN(teamId)) {
+      return res.status(400).json({ error: "Invalid team id" });
+    }
+
+    await db
+      .delete(subscribe)
+      .where(and(eq(subscribe.userId, userId), eq(subscribe.teamId, teamId)));
+
+    return res.status(200).json({ message: "Unsubscribed successfully" });
+  } catch (error) {
+    console.error("Error unsubscribing from team:", error);
+    return res.status(500).json({ error: "Failed to unsubscribe" });
+  }
+}

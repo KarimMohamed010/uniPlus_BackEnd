@@ -9,13 +9,14 @@ const router = Router();
 const createCommentSchema = z.object({
   content: z.string().min(1),
   postId: z.number(),
+  parentId: z.number().optional(),
 });
 
 const updateCommentSchema = createCommentSchema.partial();
 
 // GET endpoints
-router.get("/:commentId", commentsController.getCommentById);
 router.get("/post/:postId", commentsController.getPostComments);
+router.get("/:commentId", commentsController.getCommentById);
 
 // POST endpoints
 router.post(

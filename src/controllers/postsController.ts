@@ -24,6 +24,32 @@ export async function createPostHandler(
         const { description, teamId, media } = req.body;
         const userId = (req as any).user.id;
 
+        const teamRecord = await db.select().from(teams).where(eq(teams.id, teamId));
+        if (teamRecord.length === 0) {
+            return res.status(404).json({ error: "Team not found" });
+        }
+
+        const adminRecord = await db.select().from(admins).where(eq(admins.id, userId));
+        const isAdmin = adminRecord.length > 0;
+
+        const isLeader = teamRecord[0].leaderId === userId;
+
+        const membership = await db
+            .select()
+            .from(belongTo)
+            .where(and(eq(belongTo.teamId, teamId), eq(belongTo.studentId, userId)));
+
+        const canPost =
+            isAdmin ||
+            isLeader ||
+            membership.some((m) => m.role === "organizer" || m.role === "mediaTeam");
+
+        if (!canPost) {
+            return res.status(403).json({
+                error: "Only team leaders, organizers, media team, or admins can post in this team",
+            });
+        }
+
         // 1. Create the post entry
         const [newPost] = await db
             .insert(posts)
@@ -141,13 +167,11 @@ export async function getUserFeed(req: Request, res: Response) {
                 },
                 media: sql`COALESCE(
           json_agg(
-          // the build is packaging the post media data into a json object
             json_build_object(
               'url', ${postmedia.url}, 
               'type', ${postmedia.type},
               'description', ${postmedia.description}
             )
-        // filter is to replace the null (if there is no media with the post) with an empty array
           ) FILTER (WHERE ${postmedia.url} IS NOT NULL), 
           '[]'
         )`,
@@ -192,12 +216,11 @@ export async function getTeamPosts(req: Request<{ teamId: string }>, res: Respon
                 },
                 media: sql`COALESCE(
           json_agg(
-            // the build is packaging the post media data into a json object
             json_build_object(
               'url', ${postmedia.url}, 
-              'type', ${postmedia.type}
+              'type', ${postmedia.type},
+              'description', ${postmedia.description}
             )
-            // filter is to replace the null (if there is no media with the post) with an empty array
           ) FILTER (WHERE ${postmedia.url} IS NOT NULL), 
           '[]'
         )`,

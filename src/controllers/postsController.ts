@@ -12,8 +12,9 @@ import {
     reports,
     students,
 } from "../db/schema.ts";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, or,desc, and, sql } from "drizzle-orm";
 import { awardPoints } from "../utils/badgeUtils.ts";
+
 
 // 1. Create a new post
 export async function createPostHandler(
@@ -39,10 +40,16 @@ export async function createPostHandler(
             .from(belongTo)
             .where(and(eq(belongTo.teamId, teamId), eq(belongTo.studentId, userId)));
 
+        const subscribers = await db
+            .select()
+            .from(subscribe)
+            .where(and(eq(subscribe.teamId, teamId), eq(subscribe.userId, userId)));
+
         const canPost =
             isAdmin ||
             isLeader ||
-            membership.some((m) => m.role === "organizer" || m.role === "mediaTeam");
+            membership.some((m) => m.role === "organizer" || m.role === "mediaTeam")||
+            subscribers.length > 0;
 
         if (!canPost) {
             return res.status(403).json({
@@ -116,13 +123,13 @@ export async function getAllPosts(req: Request, res: Response) {
                 // returning the media
                 media: sql`COALESCE(
           json_agg(
-            // the build is packaging the post media data into a json object
+ 
             json_build_object(
               'url', ${postmedia.url}, 
               'type', ${postmedia.type},
               'description', ${postmedia.description}
             )
-        // filter is to replace the null (if there is no media with the post) with an empty array
+    
           ) FILTER (WHERE ${postmedia.url} IS NOT NULL), 
           '[]'
         )`,
@@ -146,6 +153,57 @@ export async function getAllPosts(req: Request, res: Response) {
 }
 
 // 3. Get User Feed (Subscribed Teams Only)
+// export async function getUserFeed(req: Request, res: Response) {
+//     try {
+//         const userId = (req as any).user.id;
+
+//         const postsData = await db
+//             .select({
+//                 id: posts.id,
+//                 description: posts.description,
+//                 issuedAt: posts.issuedAt,
+//                 author: {
+//                     id: users.id,
+//                     fname: users.fname,
+//                     lname: users.lname,
+//                     imgUrl: users.imgUrl,
+//                 },
+//                 team: {
+//                     id: teams.id,
+//                     name: teams.name,
+//                 },
+//                 media: sql`COALESCE(
+//           json_agg(
+//             json_build_object(
+//               'url', ${postmedia.url}, 
+//               'type', ${postmedia.type},
+//               'description', ${postmedia.description}
+//             )
+//           ) FILTER (WHERE ${postmedia.url} IS NOT NULL), 
+//           '[]'
+//         )`,
+//             })
+//             .from(posts)
+//             .innerJoin(createPost, eq(posts.id, createPost.postId))// to link the post with the author and the team
+//             .innerJoin(users, eq(createPost.userId, users.id))// to get the author of the post
+//             .innerJoin(teams, eq(createPost.teamId, teams.id))// to get the team of the post
+//             .innerJoin(subscribe, and(
+//                 eq(subscribe.teamId, createPost.teamId),
+//                 eq(subscribe.userId, userId)
+//             ))// to check if the user is subscribed to the team
+//             .leftJoin(postmedia, eq(posts.id, postmedia.postId))// to get the media of the post
+//             .groupBy(posts.id, users.id, teams.id)
+//             .orderBy(desc(posts.issuedAt));
+
+//         return res.status(200).json({
+//             message: "User feed retrieved successfully",
+//             posts: postsData,
+//         });
+//     } catch (error) {
+//         console.error("Error fetching user feed:", error);
+//         res.status(500).json({ error: "Failed to fetch user feed" });
+//     }
+// }
 export async function getUserFeed(req: Request, res: Response) {
     try {
         const userId = (req as any).user.id;
@@ -166,25 +224,35 @@ export async function getUserFeed(req: Request, res: Response) {
                     name: teams.name,
                 },
                 media: sql`COALESCE(
-          json_agg(
-            json_build_object(
-              'url', ${postmedia.url}, 
-              'type', ${postmedia.type},
-              'description', ${postmedia.description}
-            )
-          ) FILTER (WHERE ${postmedia.url} IS NOT NULL), 
-          '[]'
-        )`,
+                    json_agg(
+                        json_build_object(
+                            'url', ${postmedia.url}, 
+                            'type', ${postmedia.type},
+                            'description', ${postmedia.description}
+                        )
+                    ) FILTER (WHERE ${postmedia.url} IS NOT NULL), 
+                    '[]'
+                )`,
             })
             .from(posts)
-            .innerJoin(createPost, eq(posts.id, createPost.postId))// to link the post with the author and the team
-            .innerJoin(users, eq(createPost.userId, users.id))// to get the author of the post
-            .innerJoin(teams, eq(createPost.teamId, teams.id))// to get the team of the post
-            .innerJoin(subscribe, and(
-                eq(subscribe.teamId, createPost.teamId),
-                eq(subscribe.userId, userId)
-            ))// to check if the user is subscribed to the team
-            .leftJoin(postmedia, eq(posts.id, postmedia.postId))// to get the media of the post
+            .innerJoin(createPost, eq(posts.id, createPost.postId))
+            .innerJoin(users, eq(createPost.userId, users.id))
+            .innerJoin(teams, eq(createPost.teamId, teams.id))
+            // Left joins for membership/subscription to avoid filtering out posts 
+            // before we check the "OR" condition
+            .leftJoin(subscribe, eq(subscribe.teamId, teams.id))
+            .leftJoin(belongTo, eq(belongTo.teamId, teams.id)) 
+            .leftJoin(postmedia, eq(posts.id, postmedia.postId))
+            .where(
+                or(
+                    // 1. User is the Leader of the team
+                    eq(teams.leaderId, userId),
+                    // 2. User is a Member (belong to)
+                    eq(belongTo.studentId, userId),
+                    // 3. User is Subscribed
+                    eq(subscribe.userId, userId)
+                )
+            )
             .groupBy(posts.id, users.id, teams.id)
             .orderBy(desc(posts.issuedAt));
 

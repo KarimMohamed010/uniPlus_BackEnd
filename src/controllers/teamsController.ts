@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import db from "../db/connection.ts";
-import { teams, belongTo, users, students, admins, badges, subscribe } from "../db/schema.ts";
+import { teams, belongTo, users, students, admins, badges, subscribe,apply } from "../db/schema.ts";
 import { eq, and, sql } from "drizzle-orm";
 
 // Get all teams
@@ -450,5 +450,35 @@ export async function unsubscribeFromTeam(req: Request<{ id: string }>, res: Res
   } catch (error) {
     console.error("Error unsubscribing from team:", error);
     return res.status(500).json({ error: "Failed to unsubscribe" });
+  }
+}
+
+export async function getTeamApplications(req: Request, res: Response) {
+  try {
+    // Get teamId from the URL parameter: /teams/:teamId/applications
+    const { teamId } = req.params;
+
+    // Fetch all rows from 'apply' for this specific team
+    const applications = await db
+      .select({
+        studentId: apply.studentId,
+        role: apply.role,
+        cvUrl: apply.cvUrl,
+        // Join with users to get the actual identity of the applicant
+        fname: users.fname,
+        lname: users.lname,
+        email: users.email,
+        imgUrl: users.imgUrl
+      })
+      .from(apply)
+      .innerJoin(students, eq(apply.studentId, students.id))
+      .innerJoin(users, eq(students.id, users.id))
+      .where(eq(apply.teamId, Number(teamId)));
+
+    // Return the list to the Team Leader
+    return res.status(200).json(applications);
+  } catch (error) {
+    console.error("Error fetching applications for team:", error);
+    res.status(500).json({ error: "Failed to fetch team applications" });
   }
 }

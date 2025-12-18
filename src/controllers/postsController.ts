@@ -48,7 +48,7 @@ export async function createPostHandler(
         const canPost =
             isAdmin ||
             isLeader ||
-            membership.some((m) => m.role === "organizer" || m.role === "mediaTeam") ||
+            membership.length > 0 ||
             subscribers.length > 0;
 
         if (!canPost) {
@@ -321,17 +321,24 @@ export async function deletePost(req: Request<{ postId: string }>, res: Response
         // For simplicity, we'll check if the user is the one who created it
         // In a real app, you'd also check if user is an admin or team leader
 
-        const postRecord = await db
-            .select()
+        const [postRecord] = await db
+            .select({
+                postId: createPost.postId,
+                authorId: createPost.userId,
+                teamId: createPost.teamId,
+                leaderId: teams.leaderId
+            })
             .from(createPost)
+            .innerJoin(teams, eq(teams.id, createPost.teamId))
             .where(eq(createPost.postId, parseInt(postId)));
 
-        if (postRecord.length === 0) {
+        if (!postRecord) {
             return res.status(404).json({ error: "Post not found" });
         }
 
         // 1. Check if user is the Author
-        const isAuthor = postRecord[0].userId === userId;
+        const isAuthor = postRecord.authorId === userId;
+        const isLeader = postRecord.leaderId === userId;
 
         // 2. Check if user is an Admin
         const adminRecord = await db
@@ -347,13 +354,13 @@ export async function deletePost(req: Request<{ postId: string }>, res: Response
             .where(
                 and(
                     eq(belongTo.studentId, userId),
-                    eq(belongTo.teamId, postRecord[0].teamId),
+                    eq(belongTo.teamId, postRecord.teamId),
                     eq(belongTo.role, "mediaTeam")
                 )
             );
         const isMedia = teamRole.length > 0;
 
-        if (!isAuthor && !isAdmin && !isMedia) {
+        if (!isAuthor && !isAdmin && !isMedia&& !isLeader) {
             return res.status(403).json({ error: "Unauthorized to delete this post" });
         }
 
@@ -371,44 +378,123 @@ export async function deletePost(req: Request<{ postId: string }>, res: Response
 }
 
 // 6. Report a post
+// export async function reportPost(req: Request<{ postId: string }>, res: Response) {
+//     try {
+//         const { postId } = req.params;
+//         const { description } = req.body;
+//         const userId = (req as any).user.id;
+
+//         // 1. Check if user is a student (not admin)
+//         const studentRecord = await db
+//             .select()
+//             .from(students)
+//             .where(eq(students.id, userId));
+
+//         if (studentRecord.length === 0) {
+//             return res.status(403).json({ error: "Only students can report posts." });
+//         }
+
+//         // 2. Get the post's team and author
+//         const postRecord = await db
+//             .select({
+//                 teamId: createPost.teamId,
+//                 authorId: createPost.userId,
+//             })
+//             .from(posts)
+//             .innerJoin(createPost, eq(posts.id, createPost.postId))
+//             .where(eq(posts.id, parseInt(postId)));
+
+//         if (postRecord.length === 0) {
+//             return res.status(404).json({ error: "Post not found" });
+//         }
+
+//         // 2.5 Check if the user is reporting their own post
+//         if (postRecord[0].authorId === userId) {
+//             return res.status(403).json({ error: "You cannot report your own post." });
+//         }
+
+//         const teamId = postRecord[0].teamId;
+
+//         // 3. Check if user is subscribed to the team
+//         const subscription = await db
+//             .select()
+//             .from(subscribe)
+//             .where(
+//                 and(
+//                     eq(subscribe.userId, userId),
+//                     eq(subscribe.teamId, teamId)
+//                 )
+//             );
+
+//         if (subscription.length === 0) {
+//             return res.status(403).json({ error: "You must be subscribed to the team to report this post." });
+//         }
+
+//         await db.insert(reports).values({
+//             postId: parseInt(postId),
+//             studentId: userId,
+//             describtion: description,
+//         });
+
+//         return res.status(201).json({
+//             message: "Post reported successfully",
+//         });
+//     } catch (error: any) {
+//         // Handle unique constraint violation (studentId + postId)
+//         if (error.code === '23505') {
+//             return res.status(409).json({ error: "You have already reported this post." });
+//         }
+//         console.error("Error reporting post:", error);
+//         res.status(500).json({ error: "Failed to report post" });
+//     }
+// }
+
 export async function reportPost(req: Request<{ postId: string }>, res: Response) {
     try {
         const { postId } = req.params;
         const { description } = req.body;
         const userId = (req as any).user.id;
 
-        // 1. Check if user is a student (not admin)
-        const studentRecord = await db
-            .select()
-            .from(students)
-            .where(eq(students.id, userId));
-
-        if (studentRecord.length === 0) {
-            return res.status(403).json({ error: "Only students can report posts." });
-        }
-
-        // 2. Get the post's team and author
-        const postRecord = await db
+        // 1. Get the post's team, author, and team leader
+        const [postRecord] = await db
             .select({
+                id: posts.id,
                 teamId: createPost.teamId,
                 authorId: createPost.userId,
+                leaderId: teams.leaderId
             })
             .from(posts)
             .innerJoin(createPost, eq(posts.id, createPost.postId))
+            .innerJoin(teams, eq(teams.id, createPost.teamId))
             .where(eq(posts.id, parseInt(postId)));
 
-        if (postRecord.length === 0) {
+        if (!postRecord) {
             return res.status(404).json({ error: "Post not found" });
         }
 
-        // 2.5 Check if the user is reporting their own post
-        if (postRecord[0].authorId === userId) {
+        // 2. Security Check: Cannot report your own post
+        if (postRecord.authorId === userId) {
             return res.status(403).json({ error: "You cannot report your own post." });
         }
 
-        const teamId = postRecord[0].teamId;
+        const teamId = postRecord.teamId;
 
-        // 3. Check if user is subscribed to the team
+        // 3. Gather Roles (Same as addComment logic)
+        
+        // Check Admin
+        const adminRecord = await db.select().from(admins).where(eq(admins.id, userId));
+        const isAdmin = adminRecord.length > 0;
+
+        // Check Leader
+        const isLeader = postRecord.leaderId === userId;
+
+        // Check Membership (Organizer/Media)
+        const membership = await db
+                .select()
+                .from(belongTo)
+                .where(and(eq(belongTo.teamId, teamId), eq(belongTo.studentId, userId)));
+        
+        // Check Subscription
         const subscription = await db
             .select()
             .from(subscribe)
@@ -419,10 +505,20 @@ export async function reportPost(req: Request<{ postId: string }>, res: Response
                 )
             );
 
-        if (subscription.length === 0) {
-            return res.status(403).json({ error: "You must be subscribed to the team to report this post." });
+        // 4. Combined Permission Logic
+        const canReport =
+            isAdmin ||
+            isLeader ||
+            membership.length > 0 ||
+            subscription.length > 0;
+
+        if (!canReport) {
+            return res.status(403).json({
+                error: "You do not have permission to report posts in this team. You must be an admin, leader, staff, or subscriber.",
+            });
         }
 
+        // 5. Insert Report
         await db.insert(reports).values({
             postId: parseInt(postId),
             studentId: userId,

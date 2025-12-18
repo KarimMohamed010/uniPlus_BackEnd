@@ -34,6 +34,7 @@ router.get("/my/attended", studentController.getMyAttendedRegisteredEvents);
 router.get("/my/registration", studentController.getMyOnlyRegisteredEvents);
 router.get("/event/:eventId", studentController.getMyTicket); // Get my ticket for a specific event
 router.get("/certificates/:studentId", studentController.getCertificates); // Get certificates for a student
+router.get("/badges", studentController.getBadges); // Get current user's badges
 
 // POST endpoints
 router.post(

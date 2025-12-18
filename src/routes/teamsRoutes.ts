@@ -38,4 +38,5 @@ router.get("/:id/applications", teamsController.getTeamApplications);
 router.post("/:id/applications/:studentId/accept", teamsController.acceptApplication);
 router.post("/:id/applications/:studentId/reject", teamsController.rejectApplication);
 
+
 export default router;

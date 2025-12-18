@@ -5,6 +5,8 @@ import {
   getManagerialReport,
   getParticipationReport,
   getTeamParticipationReport,
+  getPostsPerTeam,
+  getEventsPerTeam,
 } from "../controllers/reportController.ts";
 import { authenticate, requireGlobalRole } from "../middleware/auth.ts";
 
@@ -24,6 +26,10 @@ router.get("/participation", getParticipationReport);
 
 // Get engagement report
 router.get("/engagement", getEngagementReport);
+
+// Posts and events per team (admin)
+router.get("/posts-per-team", getPostsPerTeam);
+router.get("/events-per-team", getEventsPerTeam);
 
 // Get managerial report
 router.get("/managerial", getManagerialReport);

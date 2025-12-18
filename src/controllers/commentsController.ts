@@ -66,7 +66,7 @@ export async function addComment(
         const canComment =
             isAdmin ||
             isLeader ||
-            membership.some((m) => m.role === "organizer" || m.role === "mediaTeam")||
+            membership.length>0||
             subscription.length > 0;
 
         if (!canComment) {
@@ -86,6 +86,8 @@ export async function addComment(
             })
             .returning();
 
+            
+
         // Award points for creating a comment (5 points)
         if (postRecord.teamId) {
             await awardPoints(userId, postRecord.teamId, 5);
@@ -98,6 +100,111 @@ export async function addComment(
     } catch (error) {
         console.error("Error adding comment:", error);
         res.status(500).json({ error: "Failed to add comment" });
+    }
+}
+
+// Add a reply to an existing comment (parentId comes from route param or body)
+export async function addReply(
+    req: Request<{ commentId: string }, any, { content: string; postId?: number }>,
+    res: Response
+) {
+    try {
+        const { content, postId: bodyPostId } = req.body;
+        const parentId = parseInt(req.params.commentId);
+        const userId = (req as any).user.id;
+
+        // Ensure parent comment exists
+        const parentComment = await db
+            .select()
+            .from(comments)
+            .where(eq(comments.id, parentId));
+
+        if (parentComment.length === 0) {
+            return res.status(404).json({ error: "Parent comment not found" });
+        }
+
+        // Determine the postId (either provided or from parent)
+        const postId = bodyPostId ?? parentComment[0].postId;
+
+        // Reuse permission checks similar to addComment
+        const [postRecord] = await db
+            .select({
+                id: posts.id,
+                teamId: createPost.teamId,
+                leaderId: teams.leaderId,
+            })
+            .from(posts)
+            .innerJoin(createPost, eq(posts.id, createPost.postId))
+            .innerJoin(teams, eq(teams.id, createPost.teamId))
+            .where(eq(posts.id, postId));
+
+        if (!postRecord) {
+            return res.status(404).json({ error: "Post not found" });
+        }
+
+        const teamId = postRecord.teamId;
+
+        const adminRecord = await db.select().from(admins).where(eq(admins.id, userId));
+        const isAdmin = adminRecord.length > 0;
+
+        const isLeader = postRecord.leaderId === userId;
+        const membership = await db
+            .select()
+            .from(belongTo)
+            .where(and(eq(belongTo.teamId, teamId), eq(belongTo.studentId, userId)));
+
+        const subscription = await db
+            .select()
+            .from(subscribe)
+            .where(and(eq(subscribe.userId, userId), eq(subscribe.teamId, teamId)));
+
+        const canComment =
+            isAdmin ||
+            isLeader ||
+            membership.length > 0 ||
+            subscription.length > 0;
+
+        if (!canComment) {
+            return res.status(403).json({ error: "Only team leaders, organizers, media team, or admins can post in this team" });
+        }
+
+        // Create the reply (as a comment with parentId)
+        const [newComment] = await db
+            .insert(comments)
+            .values({
+                content,
+                postId,
+                author: userId,
+                parentId: parentId,
+            })
+            .returning();
+
+        if (postRecord.teamId) {
+            await awardPoints(userId, postRecord.teamId, 5);
+        }
+
+        return res.status(201).json({ message: "Reply added successfully", comment: newComment });
+    } catch (error) {
+        console.error("Error adding reply:", error);
+        res.status(500).json({ error: "Failed to add reply" });
+    }
+}
+
+// Get direct replies for a comment
+export async function getCommentReplies(req: Request<{ commentId: string }>, res: Response) {
+    try {
+        const { commentId } = req.params;
+
+        const replies = await db
+            .select()
+            .from(comments)
+            .where(eq(comments.parentId, parseInt(commentId)))
+            .orderBy(desc(comments.issuedAt));
+
+        return res.status(200).json({ message: "Replies retrieved successfully", replies });
+    } catch (error) {
+        console.error("Error fetching replies:", error);
+        res.status(500).json({ error: "Failed to fetch replies" });
     }
 }
 

@@ -1520,21 +1520,17 @@ export async function addRoom(
 // Get all rooms
 export async function getAllRooms(req: Request, res: Response) {
     try {
-        const allRooms = await db
-            .select({
-                id: rooms.id,
-                name: rooms.name,
-                capacity: rooms.capacity,
-                location: rooms.location,
-            })
-            .from(rooms);
+        const result = await db.transaction(async (tx) => {
+            const cursorName = 'rooms_cursor';
+            await tx.execute(sql`CALL get_all_rooms(${sql.raw(`'${cursorName}'`)})`);
+            const fetchResult = await tx.execute(sql`FETCH ALL FROM ${sql.raw(cursorName)}`);
+            return fetchResult;
+        });
 
         return res.status(200).json({
             message: "Rooms retrieved successfully",
-            rooms: allRooms,
-
+            rooms: result.rows,
         });
-        console.log("Error");
     } catch (error) {
         console.error("Error fetching rooms:", error);
         res.status(500).json({ error: "Failed to fetch rooms" });

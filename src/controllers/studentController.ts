@@ -236,22 +236,55 @@ export async function checkInViaQR(
   }
 }
 
+// // 3. Apply to join team
+// export async function applyToTeam(
+//   req: Request<any, any, { teamId: number; cvUrl: string; role: string }>,
+//   res: Response
+// ) {
+//   try {
+//     const { teamId, cvUrl, role } = req.body;
+//     const studentId = (req as any).user.id;
+
+//     const [application] = await db
+//       .insert(apply)
+//       .values({
+//         studentId,
+//         teamId,
+//         cvUrl,
+//         role,
+//       })
+//       .returning();
+
+//     return res.status(201).json({
+//       message: "Application submitted successfully",
+//       application,
+//     });
+//   } catch (error) {
+//     console.error("Error applying to team:", error);
+//     res.status(500).json({ error: "Failed to apply to team" });
+//   }
+// }
+
 // 3. Apply to join team
 export async function applyToTeam(
-  req: Request<any, any, { teamId: number; cvUrl: string; role: string }>,
+  // Update the type definition to match what Zod expects
+  req: Request<any, any, { teamId: number; cv: string; desiredRole: string }>,
   res: Response
 ) {
   try {
-    const { teamId, cvUrl, role } = req.body;
+    // 1. Destructure using the names defined in your Zod schema
+    const { teamId, cv, desiredRole } = req.body; 
     const studentId = (req as any).user.id;
 
+    // 2. Map those values to your Database columns
+    // (Assuming your DB columns are named studentId, teamId, cvUrl, and role)
     const [application] = await db
       .insert(apply)
       .values({
         studentId,
         teamId,
-        cvUrl,
-        role,
+        cvUrl: cv,          // mapping 'cv' from request to 'cvUrl' in DB
+        role: desiredRole,  // mapping 'desiredRole' from request to 'role' in DB
       })
       .returning();
 
@@ -261,6 +294,7 @@ export async function applyToTeam(
     });
   } catch (error) {
     console.error("Error applying to team:", error);
+    // If you reach here, check your console; it might be a DB Unique Constraint error
     res.status(500).json({ error: "Failed to apply to team" });
   }
 }

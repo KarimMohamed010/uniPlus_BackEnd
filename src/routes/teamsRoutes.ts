@@ -34,4 +34,6 @@ router.delete("/:id/subscribe", teamsController.unsubscribeFromTeam);
 
 router.patch("/:teamId/accept", teamsController.acceptTeam);
 
+router.get("/teams/:teamId/applications",teamsController.getTeamApplications);
+
 export default router;

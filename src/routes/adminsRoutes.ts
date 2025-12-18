@@ -35,6 +35,15 @@ const issueWarningSchema = z.object({
   reason: z.string().min(1, "Reason is required"),
 });
 
+// schema for speaker
+export const addSpeakerSchema = z.object({
+  name: z.string().min(1, "Name is required").max(50, "Name must be at most 50 characters"),
+  bio: z.string().optional().nullable(),
+  fname: z.string().min(1, "First name is required").max(50, "First name must be at most 50 characters"),
+  lname: z.string().min(1, "Last name is required").max(50, "Last name must be at most 50 characters"),
+  contact: z.number().int().positive("Contact must be a positive number").optional().nullable(),
+  email: z.string().email("Invalid email address").max(50, "Email must be at most 50 characters"),
+});
 // Schema for sending announcements
 const sendAnnouncementSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -59,7 +68,8 @@ const toggleUserStatusSchema = z.object({
 
 // 3. Add new admin
 router.post("/", validateBody(addAdminSchema), adminController.addAdmin);
-
+// add new speaker
+router.post("/speakers",validateBody(addSpeakerSchema),adminController.addSpeaker);
 // 4. Get all admins
 router.get("/", adminController.getAllAdmins);
 
@@ -108,6 +118,8 @@ router.post(
   adminController.issueWarning
 );
 
+router.delete("/speakers/:speakerId", adminController.removeSpeaker);
+router.delete("/rooms/:roomId", adminController.removeRoom);
 // // 12. Get warnings for a specific user
 // router.get("/warnings/:userId", adminController.getUserWarnings);
 

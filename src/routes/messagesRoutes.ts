@@ -23,5 +23,6 @@ router.post(
   validateBody(sendMessageSchema),
   messagesController.sendMessage
 );
+router.post("/mark-all-read", messagesController.markAllAsRead);
 
 export default router;

@@ -18,14 +18,14 @@ import { id } from "zod/v4/locales";
 
 // 1. Create an event ( organizer & Leader role only )
 export async function createEvent(
-    req: Request<any, any, { title: string; description?: string; type?: string; startTime: string; endTime: string; basePrice?: number; teamId: number;  speakerId:number; speakerId2?: number; roomId?:number; }>,
+    req: Request<any, any, { title: string; description?: string; type?: string; startTime: string; endTime: string; basePrice?: number; teamId: number; speakerId: number; speakerId2?: number; roomId?: number; }>,
     res: Response
 ) {
     try {
         const { title, description, type, startTime, endTime, basePrice, teamId, roomId, speakerId, speakerId2 } = req.body;
         const userId = (req as any).user.id;
 
-         console.log('Backend received roomId:', roomId, 'Type:', typeof roomId)
+        console.log('Backend received roomId:', roomId, 'Type:', typeof roomId)
 
         const [newEvent] = await db
             .insert(events)
@@ -42,32 +42,33 @@ export async function createEvent(
             .returning();
         // Workaround by Medhat  >_< to get event ID depending on all this info will be my key to get the id
         const IseventID = await db
-            .select({id: events.id})
+            .select({ id: events.id })
             .from(events)
-            .where(and (eq(events.title,title),eq(events.description,description),eq(events.type,type),eq(events.startTime,startTime),eq(events.endTime,endTime),eq(events.basePrice,basePrice),eq(events.teamId,teamId)));
+            .where(and(eq(events.title, title), eq(events.description, description), eq(events.type, type), eq(events.startTime, startTime), eq(events.endTime, endTime), eq(events.basePrice, basePrice), eq(events.teamId, teamId)));
 
-            const eventId = newEvent.id; 
-        
+        const eventId = newEvent.id;
+
         await db.insert(speak).values({
             eventId,
             speakerId,
         });
-        
+
         if (speakerId2) {
-    await db.insert(speak).values({
-        eventId: eventId,
-        speakerId: speakerId2
-    });
-    
-    }
-        if(roomId){await db.insert(takePlace).values({
-            eventId,
-            roomId,
-        });console.log('Room inserted successfully'); // DEBUG
+            await db.insert(speak).values({
+                eventId: eventId,
+                speakerId: speakerId2
+            });
+
+        }
+        if (roomId) {
+            await db.insert(takePlace).values({
+                eventId,
+                roomId,
+            }); console.log('Room inserted successfully'); // DEBUG
         } else {
             console.log('No roomId to insert'); // DEBUG
         }
-        
+
         return res.status(201).json({
             message: "Event created successfully",
             event: newEvent,
@@ -416,7 +417,7 @@ export async function removeSpeaker(req: Request, res: Response) {
     try {
         const { speakerId } = req.body;
         const userId = (req as any).user.id;
-        await db.delete(speakers).where(    
+        await db.delete(speakers).where(
             eq(speakers.id, speakerId)
         );
 
@@ -1502,7 +1503,7 @@ export async function addRoom(
             .values({
                 name,
                 capacity,
-                location:"Faculty of Engineering Cairo University",
+                location: "Faculty of Engineering Cairo University",
             })
             .returning();
 
@@ -1519,21 +1520,17 @@ export async function addRoom(
 // Get all rooms
 export async function getAllRooms(req: Request, res: Response) {
     try {
-        const allRooms = await db
-            .select({
-                id:rooms.id,
-                name: rooms.name,
-                capacity: rooms.capacity,
-                location: rooms.location,
-            })
-            .from(rooms);
+        const result = await db.transaction(async (tx) => {
+            const cursorName = 'rooms_cursor';
+            await tx.execute(sql`CALL get_all_rooms(${sql.raw(`'${cursorName}'`)})`);
+            const fetchResult = await tx.execute(sql`FETCH ALL FROM ${sql.raw(cursorName)}`);
+            return fetchResult;
+        });
 
         return res.status(200).json({
             message: "Rooms retrieved successfully",
-            rooms: allRooms,
-            
+            rooms: result.rows,
         });
-        console.log("Error");
     } catch (error) {
         console.error("Error fetching rooms:", error);
         res.status(500).json({ error: "Failed to fetch rooms" });
@@ -1550,7 +1547,7 @@ export async function getAllSpeakers(req: Request, res: Response) {
         return res.status(200).json({
             message: "Speakers retrieved successfully",
             speakers: allSpeakers,
-            
+
         });
         console.log("Error");
     } catch (error) {

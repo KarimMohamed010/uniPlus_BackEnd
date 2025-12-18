@@ -64,7 +64,6 @@ router.post(
 // PATCH endpoints
 router.patch(
   "/:postId",
-  validateBody(updatePostSchema),
   postsController.editPost
 );
 

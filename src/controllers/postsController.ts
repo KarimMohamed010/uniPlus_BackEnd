@@ -539,13 +539,70 @@ export async function reportPost(req: Request<{ postId: string }>, res: Response
 }
 
 // 7. Edit a post (Author only)
+// export async function editPost(req: Request<{ postId: string }>, res: Response) {
+//     try {
+//         const { postId } = req.params;
+//         const { description, media } = req.body;
+//         const userId = (req as any).user.id;
+
+//         // 1. Check if user is the author
+//         const postRecord = await db
+//             .select()
+//             .from(createPost)
+//             .where(eq(createPost.postId, parseInt(postId)));
+
+//         if (postRecord.length === 0) {
+//             return res.status(404).json({ error: "Post not found" });
+//         }
+
+//         if (postRecord[0].userId !== userId) {
+//             return res.status(403).json({ error: "Only the author can edit this post" });
+//         }
+
+//         // 2. Update description if provided
+//         if (description !== undefined) {
+//             await db
+//                 .update(posts)
+//                 .set({ description })
+//                 .where(eq(posts.id, parseInt(postId)));
+//         }
+
+//         // 3. Update specific media items if provided
+//         if (media && media.length > 0) {
+//             // update the chosen media items
+//             for (const item of media) {
+//                 await db
+//                     .update(postmedia)
+//                     .set({
+//                         url: item.url,
+//                         type: item.type,
+//                         description: item.description,
+//                     })
+//                     .where(
+//                         and(
+//                             eq(postmedia.postId, parseInt(postId)),
+//                             eq(postmedia.id, item.id)
+//                         )
+//                     );
+//             }
+//         }
+
+//         return res.status(200).json({
+//             message: "Post updated successfully",
+//         });
+//     } catch (error) {
+//         console.error("Error editing post:", error);
+//         res.status(500).json({ error: "Failed to edit post" });
+//     }
+// }
+
 export async function editPost(req: Request<{ postId: string }>, res: Response) {
     try {
         const { postId } = req.params;
-        const { description, media } = req.body;
+        const { description, media } = req.body; // Expecting JSON structure
         const userId = (req as any).user.id;
 
-        // 1. Check if user is the author
+        // 1. Validation: Check if the post exists and the user is the author
         const postRecord = await db
             .select()
             .from(createPost)
@@ -559,33 +616,39 @@ export async function editPost(req: Request<{ postId: string }>, res: Response) 
             return res.status(403).json({ error: "Only the author can edit this post" });
         }
 
-        // 2. Update description if provided
-        if (description !== undefined) {
-            await db
-                .update(posts)
-                .set({ description })
-                .where(eq(posts.id, parseInt(postId)));
-        }
+        // 2. Database Transaction to ensure atomicity
+        await db.transaction(async (tx) => {
+            
+            // Update Description in 'posts' table
+            if (description !== undefined) {
+                await tx
+                    .update(posts)
+                    .set({ description })
+                    .where(eq(posts.id, parseInt(postId)));
+            }
 
-        // 3. Update specific media items if provided
-        if (media && media.length > 0) {
-            // update the chosen media items
-            for (const item of media) {
-                await db
-                    .update(postmedia)
-                    .set({
+            // 3. Sync Media items
+            // If the user provided a media array, we overwrite the old ones to match the new state
+            if (media && Array.isArray(media)) {
+                // Remove all current media for this post
+                await tx
+                    .delete(postmedia)
+                    .where(eq(postmedia.postId, parseInt(postId)));
+
+                // If there's new media to add, insert it (Following your createPostHandler logic)
+                if (media.length > 0) {
+                    const mediaValues = media.map((item: any, index: number) => ({
+                        id: index + 1, // Consistent with your createPostHandler logic
+                        postId: parseInt(postId),
                         url: item.url,
                         type: item.type,
-                        description: item.description,
-                    })
-                    .where(
-                        and(
-                            eq(postmedia.postId, parseInt(postId)),
-                            eq(postmedia.id, item.id)
-                        )
-                    );
+                        description: item.description || null,
+                    }));
+
+                    await tx.insert(postmedia).values(mediaValues);
+                }
             }
-        }
+        });
 
         return res.status(200).json({
             message: "Post updated successfully",

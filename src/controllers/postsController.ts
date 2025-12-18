@@ -11,6 +11,7 @@ import {
     subscribe,
     reports,
     students,
+    comments,
 } from "../db/schema.ts";
 import { eq, or, desc, and, sql, count } from "drizzle-orm";
 import { awardPoints } from "../utils/badgeUtils.ts";
@@ -133,6 +134,12 @@ export async function getAllPosts(req: Request, res: Response) {
           ) FILTER (WHERE ${postmedia.url} IS NOT NULL), 
           '[]'
         )`,
+                // Add comment count
+                commentCount: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${comments}
+          WHERE ${comments.postId} = ${posts.id}
+        )`,
             })
             .from(posts)
             .innerJoin(createPost, eq(posts.id, createPost.postId))// to link the post with the author and the team
@@ -233,6 +240,12 @@ export async function getUserFeed(req: Request, res: Response) {
                     ) FILTER (WHERE ${postmedia.url} IS NOT NULL), 
                     '[]'
                 )`,
+                // Add comment count
+                commentCount: sql<number>`(
+                    SELECT COUNT(*)::int
+                    FROM ${comments}
+                    WHERE ${comments.postId} = ${posts.id}
+                )`,
             })
             .from(posts)
             .innerJoin(createPost, eq(posts.id, createPost.postId))
@@ -291,6 +304,12 @@ export async function getTeamPosts(req: Request<{ teamId: string }>, res: Respon
             )
           ) FILTER (WHERE ${postmedia.url} IS NOT NULL), 
           '[]'
+        )`,
+                // Add comment count
+                commentCount: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${comments}
+          WHERE ${comments.postId} = ${posts.id}
         )`,
             })
             .from(posts)

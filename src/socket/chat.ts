@@ -1,6 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { Server as HTTPServer } from "http";
 import db from "../db/connection.ts";
+import env from "../../env.ts";
 import { messages, users } from "../db/schema.ts";
 import { eq, or, and, desc } from "drizzle-orm";
 import { verify } from "crypto";
@@ -18,7 +19,7 @@ const connectedUsers = new Map<number, string>();
 export function initializeSocket(httpServer: HTTPServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: ["https://my-frontend.com", "http://localhost:5173"],
+      origin: [env.FRONTEND_URL, "http://localhost:5173"],
       credentials: true,
     },
   });

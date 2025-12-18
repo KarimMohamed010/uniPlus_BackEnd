@@ -37,6 +37,7 @@ const envSchema = z.object({
 
   EMAIL_OTP_TTL_SECONDS: z.coerce.number().positive().default(600),
   EMAIL_OTP_RESEND_SECONDS: z.coerce.number().positive().default(30),
+  FRONTEND_URL: z.url().optional().default('http://localhost:5173'),
 })
 
 export type Env = z.infer<typeof envSchema>

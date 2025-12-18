@@ -81,3 +81,28 @@ BEGIN
 
 END;
 $$;
+
+CREATE OR REPLACE PROCEDURE get_reported_posts(
+    p_team_id INT,
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT 
+        p.id AS post_id,
+        (u.fname || ' ' || u.lname)::TEXT AS creator_name,
+        u.email AS creator_email,
+        p.issued_at AS published_at,
+        COUNT(r.post_id)::BIGINT AS report_count
+    FROM reports r
+    JOIN posts p ON r.post_id = p.id
+    JOIN create_post cp ON p.id = cp.post_id
+    JOIN users u ON cp.user_id = u.id
+    WHERE cp.team_id = p_team_id
+    GROUP BY p.id, u.fname, u.lname, u.email, p.issued_at
+    HAVING COUNT(r.post_id) > 0
+    ORDER BY report_count DESC, p.issued_at DESC;
+END;
+$$;

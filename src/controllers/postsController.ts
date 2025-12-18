@@ -12,7 +12,7 @@ import {
     reports,
     students,
 } from "../db/schema.ts";
-import { eq, or,desc, and, sql } from "drizzle-orm";
+import { eq, or, desc, and, sql } from "drizzle-orm";
 import { awardPoints } from "../utils/badgeUtils.ts";
 
 
@@ -48,7 +48,7 @@ export async function createPostHandler(
         const canPost =
             isAdmin ||
             isLeader ||
-            membership.some((m) => m.role === "organizer" || m.role === "mediaTeam")||
+            membership.some((m) => m.role === "organizer" || m.role === "mediaTeam") ||
             subscribers.length > 0;
 
         if (!canPost) {
@@ -241,7 +241,7 @@ export async function getUserFeed(req: Request, res: Response) {
             // Left joins for membership/subscription to avoid filtering out posts 
             // before we check the "OR" condition
             .leftJoin(subscribe, eq(subscribe.teamId, teams.id))
-            .leftJoin(belongTo, eq(belongTo.teamId, teams.id)) 
+            .leftJoin(belongTo, eq(belongTo.teamId, teams.id))
             .leftJoin(postmedia, eq(posts.id, postmedia.postId))
             .where(
                 or(
@@ -383,9 +383,10 @@ export async function deletePost(req: Request<{ postId: string }>, res: Response
 }
 
 // 6. Report a post
-export async function reportPost(req: Request, res: Response) {
+export async function reportPost(req: Request<{ postId: string }>, res: Response) {
     try {
-        const { postId, description } = req.body;
+        const { postId } = req.params;
+        const { description } = req.body;
         const userId = (req as any).user.id;
 
         // 1. Check if user is a student (not admin)
@@ -405,7 +406,7 @@ export async function reportPost(req: Request, res: Response) {
             })
             .from(posts)
             .innerJoin(createPost, eq(posts.id, createPost.postId))
-            .where(eq(posts.id, postId));
+            .where(eq(posts.id, parseInt(postId)));
 
         if (postRecord.length === 0) {
             return res.status(404).json({ error: "Post not found" });
@@ -429,7 +430,7 @@ export async function reportPost(req: Request, res: Response) {
         }
 
         await db.insert(reports).values({
-            postId,
+            postId: parseInt(postId),
             studentId: userId,
             describtion: description,
         });
@@ -605,5 +606,58 @@ export async function getUserPosts(req: Request<{ userId: string }>, res: Respon
     } catch (error) {
         console.error("Error fetching user posts:", error);
         res.status(500).json({ error: "Failed to fetch user posts" });
+    }
+}
+
+// 10. Get reported posts for a specific team (Media Team/Leader only)
+export async function getReportedPosts(req: Request<{ teamId: string }>, res: Response) {
+    try {
+        const { teamId } = req.params;
+        const userId = (req as any).user.id;
+
+        // 1. Check if user has media role or is leader
+        const teamRecord = await db.select().from(teams).where(eq(teams.id, parseInt(teamId)));
+        if (teamRecord.length === 0) {
+            return res.status(404).json({ error: "Team not found" });
+        }
+
+        const isLeader = teamRecord[0].leaderId === userId;
+
+        const mediaRole = await db
+            .select()
+            .from(belongTo)
+            .where(
+                and(
+                    eq(belongTo.studentId, userId),
+                    eq(belongTo.teamId, parseInt(teamId)),
+                    eq(belongTo.role, "mediaTeam")
+                )
+            );
+
+        if (!isLeader && mediaRole.length === 0) {
+            return res.status(403).json({ error: "Unauthorized to view reported posts" });
+        }
+
+        // 2. Call the SQL procedure and fetch results from cursor
+        // Cursors require a transaction
+        console.log(`Fetching reported posts for teamId: ${teamId}`);
+        const result = await db.transaction(async (tx) => {
+            const cursorName = 'reported_posts_cursor';
+            // Call the procedure
+            await tx.execute(sql`CALL get_reported_posts(${parseInt(teamId)}, ${sql.raw(`'${cursorName}'`)})`);
+            // Fetch rows from the cursor
+            const fetchResult = await tx.execute(sql`FETCH ALL FROM ${sql.raw(cursorName)}`);
+            return fetchResult;
+        });
+
+        console.log(`Fetched ${result.rows.length} reported posts for teamId: ${teamId}`);
+
+        return res.status(200).json({
+            message: "Reported posts retrieved successfully",
+            posts: result.rows,
+        });
+    } catch (error) {
+        console.error("Error fetching reported posts:", error);
+        res.status(500).json({ error: "Failed to fetch reported posts" });
     }
 }

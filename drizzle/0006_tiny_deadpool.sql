@@ -1,0 +1,1 @@
+ALTER TABLE "subscribe" ADD COLUMN "points" integer DEFAULT 0;

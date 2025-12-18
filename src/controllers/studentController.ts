@@ -11,9 +11,9 @@ import {
   rides,
   joinRide,
   users,
-  badges,
-  type NewTicketsAndFeedback,
+  subscribe,
   belongTo,
+  type NewTicketsAndFeedback,
 } from "../db/schema.ts";
 import { eq, and, gt, isNotNull, desc, asc,sql } from "drizzle-orm";
 
@@ -83,7 +83,7 @@ export async function registerForEvent(
       // 2. Get Event Data
       const eventData = await tx.query.events.findFirst({
         where: eq(events.id, eventId),
-        columns: { basePrice: true },
+        columns: { basePrice: true, teamId: true },
       });
 
       if (!eventData) {
@@ -91,15 +91,21 @@ export async function registerForEvent(
       }
 
       let finalPrice = Number(eventData.basePrice);
-      let studentIDBadge = null; // Track if we need to decrement a badge
-      let teamIDBadge = null; // Track if we need to decrement a badge
+      let userIdBadge = null; // Track if we need to decrement a badge
+      let teamIdBadge = null; // Track if we need to decrement a badge
 
-      // 3. Get User Badge
-      const userBadge = await tx.query.badges.findFirst({
-        where: eq(badges.studentId, studentId),
+      // 3. Get event team ID to find user's subscription/badge
+      const eventTeamId = eventData.teamId;
+
+      // 4. Get User Badge from subscribe table
+      const userBadge = await tx.query.subscribe.findFirst({
+        where: and(
+          eq(subscribe.userId, studentId),
+          eq(subscribe.teamId, eventTeamId)
+        ),
       });
 
-      // 4. Apply Calculation Logic AND Prepare Update
+      // 5. Apply Calculation Logic AND Prepare Update
       if (userBadge && userBadge.usageNum && userBadge.usageNum > 0) {
         const badgeType = String(userBadge.type).toLowerCase();
         let discountApplied = false;
@@ -120,19 +126,19 @@ export async function registerForEvent(
         }
 
         if (discountApplied) {
-            studentIDBadge = userBadge.studentId;
-            teamIDBadge = userBadge.teamId;
+            userIdBadge = userBadge.userId;
+            teamIdBadge = userBadge.teamId;
         }
       }
 
       const dbPrice = Math.round(finalPrice);
 
-      // 5. Decrement Badge Usage (CRITICAL MISSING STEP)
-      if (studentIDBadge && teamIDBadge) {
+      // 6. Decrement Badge Usage in subscribe table
+      if (userIdBadge && teamIdBadge) {
         await tx
-          .update(badges)
-          .set({ usageNum: sql`${badges.usageNum} - 1` }) // Atomic decrement
-          .where(and (eq(badges.studentId, studentIDBadge) , eq(badges.teamId, teamIDBadge)));
+          .update(subscribe)
+          .set({ usageNum: sql`${subscribe.usageNum} - 1` }) // Atomic decrement
+          .where(and(eq(subscribe.userId, userIdBadge), eq(subscribe.teamId, teamIdBadge)));
           
       }
 
@@ -683,15 +689,15 @@ export async function getProfile(req: Request, res: Response) {
   }
 }
 
-// 9. Get achievements/badges
+// 9. Get achievements/badges from subscribe table
 export async function getBadges(req: Request, res: Response) {
   try {
     const studentId = (req as any).user.id;
 
     const studentBadges = await db
       .select()
-      .from(badges)
-      .where(eq(badges.studentId, studentId));
+      .from(subscribe)
+      .where(eq(subscribe.userId, studentId));
 
     return res.status(200).json({
       message: "Badges retrieved",

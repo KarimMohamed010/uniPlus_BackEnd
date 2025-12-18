@@ -12,7 +12,7 @@ import {
     reports,
     students,
 } from "../db/schema.ts";
-import { eq, or, desc, and, sql } from "drizzle-orm";
+import { eq, or, desc, and, sql, count } from "drizzle-orm";
 import { awardPoints } from "../utils/badgeUtils.ts";
 
 
@@ -331,42 +331,30 @@ export async function deletePost(req: Request<{ postId: string }>, res: Response
         }
 
         // 1. Check if user is the Author
-        if (postRecord[0].userId === userId) {
-            // User is the author, allow delete
-        } else {
-            // 2. Check if user is an Admin
-            const adminRecord = await db
-                .select()
-                .from(admins)
-                .where(eq(admins.id, userId));
+        const isAuthor = postRecord[0].userId === userId;
 
-            if (adminRecord.length > 0) {
-                // User is an admin, allow delete
-            } else {
-                // 3. Check if user has "media" role in the team
-                // COMMENTED OUT AS PER REQUEST
-                /*
-                const teamRole = await db
-                    .select()
-                    .from(belongTo)
-                    .where(
-                        and(
-                            eq(belongTo.studentId, userId),
-                            eq(belongTo.teamId, postRecord[0].teamId),
-                            eq(belongTo.role, "media")
-                        )
-                    );
+        // 2. Check if user is an Admin
+        const adminRecord = await db
+            .select()
+            .from(admins)
+            .where(eq(admins.id, userId));
+        const isAdmin = adminRecord.length > 0;
 
-                if (teamRole.length > 0) {
-                    // User has media role, allow delete
-                } else {
-                    return res.status(403).json({ error: "Unauthorized to delete this post" });
-                }
-                */
+        // 3. Check if user has "mediaTeam" role in the team
+        const teamRole = await db
+            .select()
+            .from(belongTo)
+            .where(
+                and(
+                    eq(belongTo.studentId, userId),
+                    eq(belongTo.teamId, postRecord[0].teamId),
+                    eq(belongTo.role, "mediaTeam")
+                )
+            );
+        const isMedia = teamRole.length > 0;
 
-                // None of the conditions met, deny access
-                return res.status(403).json({ error: "Unauthorized to delete this post" });
-            }
+        if (!isAuthor && !isAdmin && !isMedia) {
+            return res.status(403).json({ error: "Unauthorized to delete this post" });
         }
 
         // Delete the post (Cascading deletes in DB should handle relations)
@@ -399,10 +387,11 @@ export async function reportPost(req: Request<{ postId: string }>, res: Response
             return res.status(403).json({ error: "Only students can report posts." });
         }
 
-        // 2. Get the post's team
+        // 2. Get the post's team and author
         const postRecord = await db
             .select({
                 teamId: createPost.teamId,
+                authorId: createPost.userId,
             })
             .from(posts)
             .innerJoin(createPost, eq(posts.id, createPost.postId))
@@ -410,6 +399,11 @@ export async function reportPost(req: Request<{ postId: string }>, res: Response
 
         if (postRecord.length === 0) {
             return res.status(404).json({ error: "Post not found" });
+        }
+
+        // 2.5 Check if the user is reporting their own post
+        if (postRecord[0].authorId === userId) {
+            return res.status(403).json({ error: "You cannot report your own post." });
         }
 
         const teamId = postRecord[0].teamId;
@@ -608,6 +602,7 @@ export async function getUserPosts(req: Request<{ userId: string }>, res: Respon
         res.status(500).json({ error: "Failed to fetch user posts" });
     }
 }
+
 
 // 10. Get reported posts for a specific team (Media Team/Leader only)
 export async function getReportedPosts(req: Request<{ teamId: string }>, res: Response) {

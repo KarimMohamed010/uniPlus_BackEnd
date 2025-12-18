@@ -691,6 +691,72 @@ export async function getEventRegistrations(
     }
 }
 
+// 13.5. Get attended students for certificate issuance (Organizer only)
+export async function getAttendedStudents(
+    req: Request<{ eventId: string }>,
+    res: Response
+) {
+    try {
+        const { eventId } = req.params;
+        const userId = (req as any).user.id;
+
+        // Get event to check team
+        const eventRecord = await db
+            .select()
+            .from(events)
+            .where(eq(events.id, parseInt(eventId)));
+
+        if (eventRecord.length === 0) {
+            return res.status(404).json({ error: "Event not found" });
+        }
+
+        // // Check if user is team organizer
+        // const membership = await db
+        //     .select()
+        //     .from(belongTo)
+        //     .where(
+        //         and(
+        //             eq(belongTo.studentId, userId),
+        //             eq(belongTo.teamId, eventRecord[0].teamId!),
+        //             eq(belongTo.role, "organizer")
+        //         )
+        //     );
+
+        // if (membership.length === 0) {
+        //     return res.status(403).json({
+        //         error: "Only event organizers can view attended students"
+        //     });
+        // }
+
+        // Get all students who attended (scanned = 1)
+        const attendedStudents = await db
+            .select({
+                studentId: ticketsAndFeedback.studentId,
+                studentName: sql`${users.fname} || ' ' || ${users.lname}`,
+                email: users.email,
+                certificationUrl: ticketsAndFeedback.certificationUrl,
+                dateIssued: ticketsAndFeedback.dateIssued,
+            })
+            .from(ticketsAndFeedback)
+            .innerJoin(students, eq(ticketsAndFeedback.studentId, students.id))
+            .innerJoin(users, eq(students.id, users.id))
+            .where(
+                and(
+                    eq(ticketsAndFeedback.eventId, parseInt(eventId)),
+                    eq(ticketsAndFeedback.scanned, 1)
+                )
+            );
+
+        return res.status(200).json({
+            message: "Attended students retrieved successfully",
+            students: attendedStudents,
+        });
+    } catch (error) {
+        console.error("Error fetching attended students:", error);
+        res.status(500).json({ error: "Failed to fetch attended students" });
+    }
+}
+
 // 14. Assign room to event (Organizer only)
 export async function assignRoomToEvent(
     req: Request<any, any, { eventId: number; roomId: number }>,

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { validateBody } from "../middleware/validation.ts";
 import { z } from "zod";
 import * as studentController from "../controllers/studentController.ts";
-import { verifyQr } from "../controllers/organizerController.ts";
+import { verifyQr, issueCertificate } from "../controllers/organizerController.ts";
 const router = Router();
 
 // Schemas
@@ -21,12 +21,19 @@ const rateEventSchema = z.object({
   feedback: z.string().optional(),
 });
 
+const issueCertificateSchema = z.object({
+  eventId: z.number(),
+  studentId: z.number(),
+  certUrl: z.string(),
+});
+
 // GET endpoints
 // router.get("/", studentController.getAvailableEvents);
 router.get("/my/upcoming", studentController.getMyUpcomingRegisteredEvents);
 router.get("/my/attended", studentController.getMyAttendedRegisteredEvents);
 router.get("/my/registration", studentController.getMyOnlyRegisteredEvents);
 router.get("/event/:eventId", studentController.getMyTicket); // Get my ticket for a specific event
+router.get("/certificates/:studentId", studentController.getCertificates); // Get certificates for a student
 
 // POST endpoints
 router.post(
@@ -50,6 +57,12 @@ router.post(
 router.patch(
   "/verifyQr",
   verifyQr
+);
+
+router.patch(
+  "/certificate",
+  validateBody(issueCertificateSchema),
+  issueCertificate
 );
 
 export default router;

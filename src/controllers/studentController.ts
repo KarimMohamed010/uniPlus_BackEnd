@@ -711,8 +711,24 @@ export async function getCertificates(req: Request, res: Response) {
     const { studentId } = req.params;
 
     const certificates = await db
-      .select()
+      .select({
+        certificationUrl: ticketsAndFeedback.certificationUrl,
+        dateIssued: ticketsAndFeedback.dateIssued,
+        event: {
+          id: events.id,
+          title: events.title,
+          description: events.description,
+          startTime: events.startTime,
+          endTime: events.endTime,
+        },
+        team: {
+          id: teams.id,
+          name: teams.name,
+        },
+      })
       .from(ticketsAndFeedback)
+      .innerJoin(events, eq(ticketsAndFeedback.eventId, events.id))
+      .leftJoin(teams, eq(events.teamId, teams.id))
       .where(
         and(
           eq(ticketsAndFeedback.studentId, parseInt(studentId)),

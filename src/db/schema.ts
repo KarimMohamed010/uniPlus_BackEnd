@@ -397,6 +397,13 @@ export const subscribe = pgTable(
   {
     userId: integer("user_id").notNull(),
     teamId: integer("team_id").notNull(),
+    points: integer("points").default(0),
+    type: text("type_").notNull(),
+    expDate: timestamp("exp_date", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+    usageNum: integer("usage_num"),
   },
   (table) => [
     foreignKey({
@@ -557,41 +564,6 @@ export const postmedia = pgTable(
   ]
 );
 
-export const badges = pgTable(
-  "badges",
-  {
-    studentId: integer("student_id").notNull(),
-    teamId: integer("team_id").notNull(),
-    type: text("type_").notNull(),
-    points: integer().default(0),
-    expDate: timestamp("exp_date", {
-      withTimezone: true,
-      mode: "string",
-    }).defaultNow(),
-    usageNum: integer("usage_num"),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.studentId],
-      foreignColumns: [students.id],
-      name: "badges_student_id_fkey",
-    })
-      .onUpdate("cascade")
-      .onDelete("cascade"),
-    foreignKey({
-      columns: [table.teamId],
-      foreignColumns: [teams.id],
-      name: "badges_team_id_fkey",
-    })
-      .onUpdate("cascade")
-      .onDelete("cascade"),
-    primaryKey({
-      columns: [table.studentId, table.teamId],
-      name: "badges_pkey",
-    }),
-  ]
-);
-
 export const ticketsAndFeedback = pgTable(
   "tickets_and_feedback",
   {
@@ -732,11 +704,6 @@ export type Postmedia = typeof postmedia.$inferSelect;
 export type NewPostmedia = typeof postmedia.$inferInsert;
 export const insertPostmediaSchema = createInsertSchema(postmedia);
 export const selectPostmediaSchema = createSelectSchema(postmedia);
-
-export type Badge = typeof badges.$inferSelect;
-export type NewBadge = typeof badges.$inferInsert;
-export const insertBadgeSchema = createInsertSchema(badges);
-export const selectBadgeSchema = createSelectSchema(badges);
 
 export type TicketsAndFeedback = typeof ticketsAndFeedback.$inferSelect;
 export type NewTicketsAndFeedback = typeof ticketsAndFeedback.$inferInsert;

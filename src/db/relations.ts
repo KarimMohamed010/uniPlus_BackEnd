@@ -20,7 +20,6 @@ import {
   belongTo,
   apply,
   postmedia,
-  badges,
   ticketsAndFeedback,
 } from "./schema.ts";
 
@@ -35,7 +34,6 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   reports: many(reports),
   belongTos: many(belongTo),
   applies: many(apply),
-  badges: many(badges),
   ticketsAndFeedbacks: many(ticketsAndFeedback),
 }));
 
@@ -76,7 +74,6 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
   subscribes: many(subscribe),
   belongTos: many(belongTo),
   applies: many(apply),
-  badges: many(badges),
 }));
 
 export const eventsRelations = relations(events, ({ one, many }) => ({
@@ -244,17 +241,6 @@ export const postmediaRelations = relations(postmedia, ({ one }) => ({
   post: one(posts, {
     fields: [postmedia.postId],
     references: [posts.id],
-  }),
-}));
-
-export const badgesRelations = relations(badges, ({ one }) => ({
-  student: one(students, {
-    fields: [badges.studentId],
-    references: [students.id],
-  }),
-  team: one(teams, {
-    fields: [badges.teamId],
-    references: [teams.id],
   }),
 }));
 

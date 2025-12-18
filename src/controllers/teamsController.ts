@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import db from "../db/connection.ts";
-import { teams, belongTo, users, students, admins, badges, subscribe,apply } from "../db/schema.ts";
+import { teams, belongTo, users, students, admins, subscribe, apply } from "../db/schema.ts";
 import { eq, and, sql } from "drizzle-orm";
 
 // Get all teams
@@ -325,26 +325,25 @@ export async function acceptTeam(req: Request<{ teamId: string }>, res: Response
 }
 
 
-// get all team's members (not organizer nor member)
+// get all subscribers with badge data
 export async function getStudentsWithBadges(req: Request, res: Response) {
   try {
     const studentsWithBadges = await db
       .select({
-        studentId: badges.studentId,
-        teamId: badges.teamId,
-        badgeType: badges.type,
-        points: badges.points,
-        expDate: badges.expDate,
-        usageNum: badges.usageNum,
-        // Student info from users table
+        userId: subscribe.userId,
+        teamId: subscribe.teamId,
+        badgeType: subscribe.type,
+        points: subscribe.points,
+        expDate: subscribe.expDate,
+        usageNum: subscribe.usageNum,
+        // User info from users table
         fname: users.fname,
         lname: users.lname,
         email: users.email,
         imgUrl: users.imgUrl,
       })
-      .from(badges)
-      .innerJoin(students, eq(badges.studentId, students.id))
-      .innerJoin(users, eq(students.id, users.id));
+      .from(subscribe)
+      .innerJoin(users, eq(subscribe.userId, users.id));
     return res.status(200).json({
       message: "Students with badges retrieved",
       students: studentsWithBadges,
@@ -420,7 +419,7 @@ export async function subscribeToTeam(req: Request<{ id: string }>, res: Respons
       return res.status(404).json({ error: "Team not found" });
     }
 
-    await db.insert(subscribe).values({ userId, teamId });
+    await db.insert(subscribe).values({ userId, teamId, type: "subscriber" });
 
     return res.status(201).json({ message: "Subscribed successfully" });
   } catch (error: any) {

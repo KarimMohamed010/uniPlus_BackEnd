@@ -8,6 +8,7 @@ import {
   comments,
   events,
   messages,
+  createPost,
   posts,
   rides,
   students,
@@ -594,4 +595,48 @@ export const getTeamEngagementReport = async (req: Request, res: Response) => {
     success: false,
     error: 'Team engagement reports are not yet implemented',
   });
+};
+
+// Get posts per team (admin only)
+export const getPostsPerTeam = async (req: Request, res: Response) => {
+  try {
+    if (!(await requireAdmin(req))) {
+      return res.status(403).json({ error: "Only admins can view reports" });
+    }
+
+    const rows = await db
+      .select({ id: teams.id, name: teams.name, posts: sql<number>`COUNT(${createPost.postId})` })
+      .from(teams)
+      .leftJoin(createPost, eq(createPost.teamId, teams.id))
+      .groupBy(teams.id, teams.name)
+      .orderBy(desc(sql`COUNT(${createPost.postId})`));
+
+    const data = rows.map((r) => ({ id: r.id, name: r.name, posts: Number(r.posts ?? 0) }));
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("Error generating posts-per-team report:", error);
+    return res.status(500).json({ error: "Failed to generate posts-per-team report" });
+  }
+};
+
+// Get events per team (admin only)
+export const getEventsPerTeam = async (req: Request, res: Response) => {
+  try {
+    if (!(await requireAdmin(req))) {
+      return res.status(403).json({ error: "Only admins can view reports" });
+    }
+
+    const rows = await db
+      .select({ id: teams.id, name: teams.name, eventsCount: sql<number>`COUNT(${events.id})` })
+      .from(teams)
+      .leftJoin(events, eq(events.teamId, teams.id))
+      .groupBy(teams.id, teams.name)
+      .orderBy(desc(sql`COUNT(${events.id})`));
+
+    const data = rows.map((r) => ({ id: r.id, name: r.name, events: Number(r.eventsCount ?? 0) }));
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("Error generating events-per-team report:", error);
+    return res.status(500).json({ error: "Failed to generate events-per-team report" });
+  }
 };

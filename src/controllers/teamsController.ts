@@ -218,9 +218,9 @@ export async function updateMemberRole(
 }
 
 // 7. Leave team
-export async function leaveTeam(req: Request<{ teamId: string }>, res: Response) {
+export async function leaveTeam(req: Request<{ id: string }>, res: Response) {
   try {
-    const { teamId } = req.params;
+    const { id: teamId } = req.params;
     const userId = (req as any).user.id;
 
     // Check if member exists
@@ -454,16 +454,35 @@ export async function unsubscribeFromTeam(req: Request<{ id: string }>, res: Res
 
 export async function getTeamApplications(req: Request, res: Response) {
   try {
-    // Get teamId from the URL parameter: /teams/:teamId/applications
-    const { teamId } = req.params;
+    const { id: teamId } = req.params;
+    const userId = (req as any).user.id;
 
-    // Fetch all rows from 'apply' for this specific team
+    // 1. Verify Authorization (Leader or HR)
+    const team = await db.select().from(teams).where(eq(teams.id, Number(teamId)));
+    if (team.length === 0) return res.status(404).json({ error: "Team not found" });
+
+    const isLeader = team[0].leaderId === userId;
+    const hrRecord = await db
+      .select()
+      .from(belongTo)
+      .where(
+        and(
+          eq(belongTo.studentId, userId),
+          eq(belongTo.teamId, Number(teamId)),
+          sql`lower(${belongTo.role}) = 'hr'`
+        )
+      );
+
+    if (!isLeader && hrRecord.length === 0) {
+      return res.status(403).json({ error: "Only the team leader or HR can view applications" });
+    }
+
+    // 2. Fetch all rows from 'apply' for this specific team
     const applications = await db
       .select({
         studentId: apply.studentId,
         role: apply.role,
         cvUrl: apply.cvUrl,
-        // Join with users to get the actual identity of the applicant
         fname: users.fname,
         lname: users.lname,
         email: users.email,
@@ -474,10 +493,116 @@ export async function getTeamApplications(req: Request, res: Response) {
       .innerJoin(users, eq(students.id, users.id))
       .where(eq(apply.teamId, Number(teamId)));
 
-    // Return the list to the Team Leader
     return res.status(200).json(applications);
   } catch (error) {
     console.error("Error fetching applications for team:", error);
     res.status(500).json({ error: "Failed to fetch team applications" });
+  }
+}
+
+// Accept a student application
+export async function acceptApplication(req: Request, res: Response) {
+  try {
+    const { id: teamId, studentId } = req.params;
+    const userId = (req as any).user.id;
+
+    // 1. Verify Authorization (Leader or HR)
+    const team = await db.select().from(teams).where(eq(teams.id, Number(teamId)));
+    if (team.length === 0) return res.status(404).json({ error: "Team not found" });
+
+    const isLeader = team[0].leaderId === userId;
+    const hrRecord = await db
+      .select()
+      .from(belongTo)
+      .where(
+        and(
+          eq(belongTo.studentId, userId),
+          eq(belongTo.teamId, Number(teamId)),
+          sql`lower(${belongTo.role}) = 'hr'`
+        )
+      );
+
+    if (!isLeader && hrRecord.length === 0) {
+      return res.status(403).json({ error: "Only the team leader or HR can accept applications" });
+    }
+
+    // 2. Get the application details (to get the role)
+    const application = await db
+      .select()
+      .from(apply)
+      .where(
+        and(
+          eq(apply.teamId, Number(teamId)),
+          eq(apply.studentId, Number(studentId))
+        )
+      );
+
+    if (application.length === 0) {
+      return res.status(404).json({ error: "Application not found" });
+    }
+
+    // 3. Transactional Accept
+    await db.transaction(async (tx) => {
+      // Add to members
+      await tx.insert(belongTo).values({
+        studentId: Number(studentId),
+        teamId: Number(teamId),
+        role: application[0].role
+      });
+
+      // // Remove from applications
+      // await tx.delete(apply).where(
+      //   and(
+      //     eq(apply.teamId, Number(teamId)),
+      //     eq(apply.studentId, Number(studentId))
+      //   )
+      // );
+    });
+
+    res.json({ message: "Application accepted successfully" });
+  } catch (error) {
+    console.error("Error accepting application:", error);
+    res.status(500).json({ error: "Failed to accept application" });
+  }
+}
+
+// Reject a student application
+export async function rejectApplication(req: Request, res: Response) {
+  try {
+    const { id: teamId, studentId } = req.params;
+    const userId = (req as any).user.id;
+
+    // 1. Verify Authorization (Leader or HR)
+    const team = await db.select().from(teams).where(eq(teams.id, Number(teamId)));
+    if (team.length === 0) return res.status(404).json({ error: "Team not found" });
+
+    const isLeader = team[0].leaderId === userId;
+    const hrRecord = await db
+      .select()
+      .from(belongTo)
+      .where(
+        and(
+          eq(belongTo.studentId, userId),
+          eq(belongTo.teamId, Number(teamId)),
+          sql`lower(${belongTo.role}) = 'hr'`
+        )
+      );
+
+    if (!isLeader && hrRecord.length === 0) {
+      return res.status(403).json({ error: "Only the team leader or HR can reject applications" });
+    }
+
+    // // 2. Delete the application
+    // await db.delete(apply).where(
+    //   and(
+    //     eq(apply.teamId, Number(teamId)),
+    //     eq(apply.studentId, Number(studentId))
+    //   )
+    // );
+
+    res.json({ message: "Application rejected successfully" });
+  } catch (error) {
+    console.error("Error rejecting application:", error);
+    res.status(500).json({ error: "Failed to reject application" });
   }
 }

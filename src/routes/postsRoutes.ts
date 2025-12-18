@@ -45,6 +45,7 @@ const reportPostSchema = z.object({
 router.get("/", postsController.getAllPosts);
 router.get("/feed", postsController.getUserFeed);
 router.get("/team/:teamId", postsController.getTeamPosts);
+router.get("/team/:teamId/reported", postsController.getReportedPosts);
 router.get("/user/:userId", postsController.getUserPosts);
 router.get("/:postId", postsController.getPostById);
 

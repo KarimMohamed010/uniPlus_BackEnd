@@ -4,7 +4,7 @@ import {
     speakers,
     admins,
 } from "../db/schema.ts";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 // 1. Add a speaker (Admin only)
 export async function AddSpeaker(
@@ -50,13 +50,16 @@ export async function AddSpeaker(
 // 2. Get all speakers
 export async function getAllSpeakers(req: Request, res: Response) {
     try {
-        const speakersData = await db
-            .select()
-            .from(speakers);
+        const result = await db.transaction(async (tx) => {
+            const cursorName = 'speakers_cursor';
+            await tx.execute(sql`CALL get_all_speakers(${sql.raw(`'${cursorName}'`)})`);
+            const fetchResult = await tx.execute(sql`FETCH ALL FROM ${sql.raw(cursorName)}`);
+            return fetchResult;
+        });
 
         return res.status(200).json({
             message: "Speakers retrieved successfully",
-            speakers: speakersData,
+            speakers: result.rows,
         });
     } catch (error) {
         console.error("Error fetching speakers:", error);

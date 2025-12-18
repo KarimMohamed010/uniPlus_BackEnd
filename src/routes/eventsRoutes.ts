@@ -6,13 +6,17 @@ import * as eventsController from "../controllers/eventsController.ts";
 const router = Router();
 
 // Schemas
-const createEventSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().optional(),
-  type: z.string(),
-  startTime: z.string().datetime(),
-  endTime: z.string().datetime(),
-  teamId: z.number(),
+export const createEventSchema = z.object({
+    title: z.string().min(1),
+    description: z.string().optional(),
+    type: z.enum(['online', 'offline']).optional(),
+    startTime: z.string(),
+    endTime: z.string(),
+    basePrice: z.number().optional(),
+    teamId: z.number(),
+    speakerId: z.number(),
+    speakerId2: z.number().optional(),
+    roomId: z.number().optional(), // Make sure this is optional!
 });
 // Schema for rating events
 const rateEventSchema = z.object({
@@ -49,6 +53,7 @@ const searchEventSchema = z.object({
 router.get("/", eventsController.getAllEvents);
 router.get("/pending", eventsController.getPendingEvents);
 router.get("/rooms", eventsController.getAllRooms);
+router.get("/speakers", eventsController.getAllSpeakers);
 router.get("/search", validateBody(searchEventSchema), eventsController.searchEvents);
 router.get("/type/:type", eventsController.getEventsByType);
 router.get("/date/:date", eventsController.getEventsByDate);
@@ -57,6 +62,7 @@ router.get("/:eventId/registrations", eventsController.getEventRegistrations);
 router.get("/:eventId/feedback", eventsController.getEventFeedback);
 router.get("/:eventId/speakers", eventsController.getEventSpeakers);
 router.get("/:eventId/room", eventsController.getEventRoom);
+router.get("/:eventId/attended", eventsController.getAttendedStudents); // Get attended students for certificate issuance
 router.get("/team/:teamId", eventsController.getTeamEvents);
 router.get("/events/upcoming", eventsController.getMyUpcomingRegisteredEvents);
 router.get("/events/attended", eventsController.getMyAttendedRegisteredEvents);
@@ -107,6 +113,7 @@ router.patch(
 
 // DELETE endpoints
 router.delete("/:eventId", eventsController.deleteEvent);
+router.delete("/:speakerId", eventsController.removeSpeaker);
 router.delete(
   "/:eventId/speakers/:speakerId",
   eventsController.removeSpeakerFromEvent

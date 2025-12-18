@@ -14,31 +14,18 @@ import {
     takePlace,
 } from "../db/schema.ts";
 import { eq, desc, and, sql, isNotNull, like, gt, lt, asc, or } from "drizzle-orm";
+import { id } from "zod/v4/locales";
 
 // 1. Create an event ( organizer & Leader role only )
 export async function createEvent(
-    req: Request<any, any, { title: string; description?: string; type?: string; startTime: string; endTime: string; basePrice?: number; teamId: number }>,
+    req: Request<any, any, { title: string; description?: string; type?: string; startTime: string; endTime: string; basePrice?: number; teamId: number;  speakerId:number; speakerId2?: number; roomId?:number; }>,
     res: Response
 ) {
     try {
-        const { title, description, type, startTime, endTime, basePrice, teamId } = req.body;
+        const { title, description, type, startTime, endTime, basePrice, teamId, roomId, speakerId, speakerId2 } = req.body;
         const userId = (req as any).user.id;
 
-        // Check if user is a team member with organizer role
-        const membership = await db
-            .select()
-            .from(belongTo)
-            .where(
-                and(
-                    eq(belongTo.studentId, userId),
-                    eq(belongTo.teamId, teamId),
-                    or(eq(belongTo.role, "organizer"), eq(teams.leaderId, userId))
-                )
-            );
-
-        if (membership.length === 0) {
-            return res.status(403).json({ error: "Only team organizers and Leader can create events" });
-        }
+         console.log('Backend received roomId:', roomId, 'Type:', typeof roomId)
 
         const [newEvent] = await db
             .insert(events)
@@ -53,7 +40,34 @@ export async function createEvent(
                 acceptanceStatus: "pending",
             })
             .returning();
+        // Workaround by Medhat  >_< to get event ID depending on all this info will be my key to get the id
+        const IseventID = await db
+            .select({id: events.id})
+            .from(events)
+            .where(and (eq(events.title,title),eq(events.description,description),eq(events.type,type),eq(events.startTime,startTime),eq(events.endTime,endTime),eq(events.basePrice,basePrice),eq(events.teamId,teamId)));
 
+            const eventId = newEvent.id; 
+        
+        await db.insert(speak).values({
+            eventId,
+            speakerId,
+        });
+        
+        if (speakerId2) {
+    await db.insert(speak).values({
+        eventId: eventId,
+        speakerId: speakerId2
+    });
+    
+    }
+        if(roomId){await db.insert(takePlace).values({
+            eventId,
+            roomId,
+        });console.log('Room inserted successfully'); // DEBUG
+        } else {
+            console.log('No roomId to insert'); // DEBUG
+        }
+        
         return res.status(201).json({
             message: "Event created successfully",
             event: newEvent,
@@ -396,6 +410,25 @@ export async function removeSpeakerFromEvent(req: Request, res: Response) {
     }
 }
 
+
+// 8.1 delete speaker
+export async function removeSpeaker(req: Request, res: Response) {
+    try {
+        const { speakerId } = req.body;
+        const userId = (req as any).user.id;
+        await db.delete(speakers).where(    
+            eq(speakers.id, speakerId)
+        );
+
+        return res.status(200).json({
+            message: "Speaker removed successfully",
+        });
+    } catch (error) {
+        console.error("Error removing speaker:", error);
+        res.status(500).json({ error: "Failed to remove speaker" });
+    }
+}
+
 // 9. Get all speakers for a certain event
 export async function getEventSpeakers(req: Request<{ eventId: string }>, res: Response) {
     try {
@@ -655,6 +688,72 @@ export async function getEventRegistrations(
     } catch (error) {
         console.error("Error fetching registrations:", error);
         res.status(500).json({ error: "Failed to fetch registrations" });
+    }
+}
+
+// 13.5. Get attended students for certificate issuance (Organizer only)
+export async function getAttendedStudents(
+    req: Request<{ eventId: string }>,
+    res: Response
+) {
+    try {
+        const { eventId } = req.params;
+        const userId = (req as any).user.id;
+
+        // Get event to check team
+        const eventRecord = await db
+            .select()
+            .from(events)
+            .where(eq(events.id, parseInt(eventId)));
+
+        if (eventRecord.length === 0) {
+            return res.status(404).json({ error: "Event not found" });
+        }
+
+        // // Check if user is team organizer
+        // const membership = await db
+        //     .select()
+        //     .from(belongTo)
+        //     .where(
+        //         and(
+        //             eq(belongTo.studentId, userId),
+        //             eq(belongTo.teamId, eventRecord[0].teamId!),
+        //             eq(belongTo.role, "organizer")
+        //         )
+        //     );
+
+        // if (membership.length === 0) {
+        //     return res.status(403).json({
+        //         error: "Only event organizers can view attended students"
+        //     });
+        // }
+
+        // Get all students who attended (scanned = 1)
+        const attendedStudents = await db
+            .select({
+                studentId: ticketsAndFeedback.studentId,
+                studentName: sql`${users.fname} || ' ' || ${users.lname}`,
+                email: users.email,
+                certificationUrl: ticketsAndFeedback.certificationUrl,
+                dateIssued: ticketsAndFeedback.dateIssued,
+            })
+            .from(ticketsAndFeedback)
+            .innerJoin(students, eq(ticketsAndFeedback.studentId, students.id))
+            .innerJoin(users, eq(students.id, users.id))
+            .where(
+                and(
+                    eq(ticketsAndFeedback.eventId, parseInt(eventId)),
+                    eq(ticketsAndFeedback.scanned, 1)
+                )
+            );
+
+        return res.status(200).json({
+            message: "Attended students retrieved successfully",
+            students: attendedStudents,
+        });
+    } catch (error) {
+        console.error("Error fetching attended students:", error);
+        res.status(500).json({ error: "Failed to fetch attended students" });
     }
 }
 
@@ -1422,7 +1521,7 @@ export async function getAllRooms(req: Request, res: Response) {
     try {
         const allRooms = await db
             .select({
-                
+                id:rooms.id,
                 name: rooms.name,
                 capacity: rooms.capacity,
                 location: rooms.location,
@@ -1438,5 +1537,24 @@ export async function getAllRooms(req: Request, res: Response) {
     } catch (error) {
         console.error("Error fetching rooms:", error);
         res.status(500).json({ error: "Failed to fetch rooms" });
+    }
+};
+
+
+export async function getAllSpeakers(req: Request, res: Response) {
+    try {
+        const allSpeakers = await db
+            .select()
+            .from(speakers);
+
+        return res.status(200).json({
+            message: "Speakers retrieved successfully",
+            speakers: allSpeakers,
+            
+        });
+        console.log("Error");
+    } catch (error) {
+        console.error("Error fetching speakers:", error);
+        res.status(500).json({ error: "Failed to fetch speakers" });
     }
 }

@@ -1,20 +1,83 @@
-import z, { email } from "zod";
-import env from "../../env.ts";
 import bcrypt from "bcrypt";
 import db from "../db/connection.ts";
 import { generateToken } from "../utils/jwt.ts";
 import { users, students, admins, belongTo, teams } from "../db/schema.ts";
-import type { messages, NewUser, User } from "../db/schema.ts";
+import type { NewUser } from "../db/schema.ts";
 import type { Request, Response } from "express";
 import { eq, sql } from "drizzle-orm";
 import { hashPassword } from "../utils/password.ts";
-import { DrizzleQueryError } from "drizzle-orm";
-import type { errorMonitor } from "events";
+import { sendEmailVerificationCode } from "../utils/mailer.ts";
+import {
+  assertEmailVerifiedForSignup,
+  consumeEmailVerification,
+  requestEmailVerification,
+  verifyEmailCode,
+} from "../utils/emailVerification.ts";
 
-export async function signUp(req: Request<any, any, NewUser>, res: Response) {
+export async function sendVerificationCode(
+  req: Request<any, any, { email: string }>,
+  res: Response
+) {
   try {
-    const userData = req.body;
+    const email = req.body.email.toLowerCase().trim();
+    const result = requestEmailVerification(email);
+
+    if (!result.ok) {
+      return res.status(result.status).json({
+        error: result.error,
+        retryAfterSeconds: result.retryAfterSeconds,
+      });
+    }
+
+    await sendEmailVerificationCode(email, result.code);
+    return res.status(200).json({
+      message: "Verification code sent",
+      verificationId: result.verificationId,
+    });
+  } catch (error) {
+    console.error("Send verification code error:", error);
+    return res.status(500).json({ error: "Failed to send verification code" });
+  }
+}
+
+export async function verifyVerificationCode(
+  req: Request<any, any, { email: string; verificationId: string; code: string }>,
+  res: Response
+) {
+  try {
+    const result = verifyEmailCode({
+      email: req.body.email,
+      verificationId: req.body.verificationId,
+      code: req.body.code,
+    });
+
+    if (!result.ok) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    return res.status(200).json({ message: "Email verified" });
+  } catch (error) {
+    console.error("Verify code error:", error);
+    return res.status(500).json({ error: "Failed to verify code" });
+  }
+}
+
+export async function signUp(
+  req: Request<any, any, NewUser & { verificationId: string }>,
+  res: Response
+) {
+  try {
+    const { verificationId, ...userData } = req.body;
     userData.email = userData.email.toLowerCase();
+
+    const verified = assertEmailVerifiedForSignup({
+      verificationId,
+      email: userData.email,
+    });
+
+    if (!verified.ok) {
+      return res.status(verified.status).json({ error: verified.error });
+    }
 
     const hashedPass = await hashPassword(userData.userPassword);
 
@@ -49,6 +112,8 @@ export async function signUp(req: Request<any, any, NewUser>, res: Response) {
         team: [],
       },
     });
+
+    consumeEmailVerification(verificationId);
 
     return res.status(201).json({
       message: "User Created Successfully",

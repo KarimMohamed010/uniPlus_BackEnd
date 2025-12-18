@@ -29,6 +29,14 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'Must be 32 chars long'),
   JWT_EXPIRES_IN: z.string().default('7d'),
   BCRYPT_ROUNDS: z.coerce.number().min(10).max(20).default(12),
+  SMTP_HOST: z.string(),
+  SMTP_PORT: z.coerce.number(),
+  SMTP_USER: z.string(),
+  SMTP_PASS: z.string(),
+  SMTP_FROM: z.string(),
+
+  EMAIL_OTP_TTL_SECONDS: z.coerce.number().positive().default(600),
+  EMAIL_OTP_RESEND_SECONDS: z.coerce.number().positive().default(30),
 })
 
 export type Env = z.infer<typeof envSchema>

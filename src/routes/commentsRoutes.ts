@@ -18,11 +18,21 @@ const updateCommentSchema = createCommentSchema.partial();
 router.get("/post/:postId", commentsController.getPostComments);
 router.get("/:commentId", commentsController.getCommentById);
 
+// Replies routes
+router.get("/:commentId/replies", commentsController.getCommentReplies);
+
 // POST endpoints
 router.post(
   "/",
   validateBody(createCommentSchema),
   commentsController.addComment
+);
+
+// Create a reply to a specific comment
+router.post(
+  "/:commentId/replies",
+  validateBody(z.object({ content: z.string().min(1), postId: z.number().optional() })),
+  commentsController.addReply
 );
 
 // PATCH endpoints

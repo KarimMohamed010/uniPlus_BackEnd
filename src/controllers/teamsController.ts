@@ -482,3 +482,73 @@ export async function getTeamApplications(req: Request, res: Response) {
     res.status(500).json({ error: "Failed to fetch team applications" });
   }
 }
+
+export async function acceptApplication(req: Request, res: Response) {
+  try {
+    const { teamId, studentId } = req.body;
+    const currentUserId = (req as any).user.id;
+
+    // 1. Verify Requester is the Leader
+    const team = await db.select().from(teams).where(eq(teams.id, teamId));
+    if (team.length === 0 || team[0].leaderId !== currentUserId) {
+      return res.status(403).json({ error: "Only the team leader can accept applications" });
+    }
+
+    // 2. Get the application details (to get the role they applied for)
+    const application = await db
+      .select()
+      .from(apply)
+      .where(and(eq(apply.teamId, teamId), eq(apply.studentId, studentId)));
+
+    if (application.length === 0) {
+      return res.status(404).json({ error: "Application not found" });
+    }
+
+    // 3. Transaction: Add to members, Remove from applications
+    await db.transaction(async (tx) => {
+      // Add to belongTo
+      await tx.insert(belongTo).values({
+        teamId: teamId,
+        studentId: studentId,
+        role: application[0].role || "member", // Default role if not specified
+      });
+
+      // Remove from apply
+      await tx.delete(apply).where(and(
+        eq(apply.teamId, teamId),
+        eq(apply.studentId, studentId)
+      ));
+    });
+
+    res.json({ message: "Applicant accepted and added to team" });
+  } catch (error: any) {
+    if (error?.code === "23505") {
+      return res.status(400).json({ error: "User is already a member of this team" });
+    }
+    console.error("Error accepting application:", error);
+    res.status(500).json({ error: "Failed to accept application" });
+  }
+}
+
+export async function rejectApplication(req: Request, res: Response) {
+  try {
+    const { teamId, studentId } = req.body;
+    const currentUserId = (req as any).user.id;
+
+    // 1. Verify Requester is the Leader
+    const team = await db.select().from(teams).where(eq(teams.id, teamId));
+    if (team.length === 0 || team[0].leaderId !== currentUserId) {
+      return res.status(403).json({ error: "Only the team leader can reject applications" });
+    }
+
+    // 2. Delete Application
+    const result = await db
+      .delete(apply)
+      .where(and(eq(apply.teamId, teamId), eq(apply.studentId, studentId)));
+
+    res.json({ message: "Application rejected successfully" });
+  } catch (error) {
+    console.error("Error rejecting application:", error);
+    res.status(500).json({ error: "Failed to reject application" });
+  }
+}

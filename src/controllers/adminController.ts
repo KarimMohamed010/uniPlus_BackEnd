@@ -479,7 +479,151 @@ export async function addAdmin(req: Request<any, any, NewUser>, res: Response) {
     } else return res.status(500).json({ error: "Failed to add admin" });
   }
 }
+//3.
+export async function removeSpeaker(req: Request, res: Response) {
+    try {
 
+      const speakerId = parseInt(req.params.speakerId);
+        if (isNaN(speakerId)) {
+            return res.status(400).json({ error: "Invalid speaker ID" });
+        }
+        
+        const userId = (req as any).user.id;
+        
+        await db.delete(speakers).where(    
+            eq(speakers.id, speakerId)
+        );
+
+        return res.status(200).json({
+            message: "Speaker removed successfully",
+        });
+    } catch (error) {
+        console.error("Error removing speaker:", error);
+        res.status(500).json({ error: "Failed to remove speaker" });
+    }
+}
+// 4.
+export async function removeRoom(req: Request, res: Response) {
+    try {
+
+      const roomId = parseInt(req.params.roomId);
+        if (isNaN(roomId)) {
+            return res.status(400).json({ error: "Invalid room ID" });
+        }
+        
+        const userId = (req as any).user.id;
+
+        await db.delete(rooms).where(    
+            eq(rooms.id, roomId)
+        );
+
+        return res.status(200).json({
+            message: "Speaker removed successfully",
+        });
+    } catch (error) {
+        console.error("Error removing speaker:", error);
+        res.status(500).json({ error: "Failed to remove speaker" });
+    }
+}
+
+//5
+export async function addSpeaker(req: Request, res: Response) {
+  try {
+    const { name, email, bio, fname, lname, contact } = req.body;
+    
+    // Manual validation for EVERY field
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return res.status(400).json({ error: "Name is required" });
+    }
+    
+    if (name.length > 50) {
+      return res.status(400).json({ error: "Name must be at most 50 characters" });
+    }
+    
+    if (!email || typeof email !== "string") {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    
+    if (!email.includes("@") || !email.includes(".")) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
+    
+    if (email.length > 50) {
+      return res.status(400).json({ error: "Email must be at most 50 characters" });
+    }
+    
+    if (bio !== undefined && bio !== null && typeof bio !== "string") {
+      return res.status(400).json({ error: "Bio must be a string" });
+    }
+    
+    if (fname !== undefined && fname !== null) {
+      if (typeof fname !== "string") {
+        return res.status(400).json({ error: "First name must be a string" });
+      }
+      if (fname.length > 50) {
+        return res.status(400).json({ error: "First name must be at most 50 characters" });
+      }
+    }
+    
+    if (lname !== undefined && lname !== null) {
+      if (typeof lname !== "string") {
+        return res.status(400).json({ error: "Last name must be a string" });
+      }
+      if (lname.length > 50) {
+        return res.status(400).json({ error: "Last name must be at most 50 characters" });
+      }
+    }
+    
+    if (contact !== undefined && contact !== null) {
+      if (typeof contact !== "number") {
+        return res.status(400).json({ error: "Contact must be a number" });
+      }
+      if (!Number.isInteger(contact)) {
+        return res.status(400).json({ error: "Contact must be an integer" });
+      }
+      if (contact <= 0) {
+        return res.status(400).json({ error: "Contact must be a positive number" });
+      }
+    }
+    
+    // Check if email already exists
+    const existingSpeaker = await db
+      .select()
+      .from(speakers)
+      .where(eq(speakers.email, email))
+      .limit(1);
+    
+    if (existingSpeaker.length > 0) {
+      return res.status(400).json({ 
+        error: "A speaker with this email already exists" 
+      });
+    }
+    
+    // Finally, insert the speaker
+    const result = await db
+      .insert(speakers)
+      .values({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        bio: bio || null,
+        fname: fname || null,
+        lname: lname || null,
+        contact: contact || null,
+      })
+      .returning();
+    
+    return res.status(201).json({
+      message: "Speaker added successfully",
+      speaker: result[0]
+    });
+    
+  } catch (error) {
+    console.error("Error adding speaker:", error);
+    return res.status(500).json({ 
+      error: "Failed to add speaker" 
+    });
+  }
+}
 // Update admin details
 export async function updateAdmin(
   req: Request<any, any, NewUser>,

@@ -550,13 +550,13 @@ export async function acceptApplication(req: Request, res: Response) {
         role: application[0].role
       });
 
-      // // Remove from applications
-      // await tx.delete(apply).where(
-      //   and(
-      //     eq(apply.teamId, Number(teamId)),
-      //     eq(apply.studentId, Number(studentId))
-      //   )
-      // );
+      // Remove from applications
+      await tx.delete(apply).where(
+        and(
+          eq(apply.teamId, Number(teamId)),
+          eq(apply.studentId, Number(studentId))
+        )
+      );
     });
 
     res.json({ message: "Application accepted successfully" });
@@ -592,13 +592,13 @@ export async function rejectApplication(req: Request, res: Response) {
       return res.status(403).json({ error: "Only the team leader or HR can reject applications" });
     }
 
-    // // 2. Delete the application
-    // await db.delete(apply).where(
-    //   and(
-    //     eq(apply.teamId, Number(teamId)),
-    //     eq(apply.studentId, Number(studentId))
-    //   )
-    // );
+    // 2. Delete the application
+    await db.delete(apply).where(
+      and(
+        eq(apply.teamId, Number(teamId)),
+        eq(apply.studentId, Number(studentId))
+      )
+    );
 
     res.json({ message: "Application rejected successfully" });
   } catch (error) {

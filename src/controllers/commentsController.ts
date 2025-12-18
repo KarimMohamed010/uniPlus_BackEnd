@@ -66,7 +66,7 @@ export async function addComment(
         const canComment =
             isAdmin ||
             isLeader ||
-            membership.some((m) => m.role === "organizer" || m.role === "mediaTeam")||
+            membership.length>0||
             subscription.length > 0;
 
         if (!canComment) {
@@ -161,7 +161,7 @@ export async function addReply(
         const canComment =
             isAdmin ||
             isLeader ||
-            membership.some((m) => m.role === "organizer" || m.role === "mediaTeam") ||
+            membership.length > 0 ||
             subscription.length > 0;
 
         if (!canComment) {

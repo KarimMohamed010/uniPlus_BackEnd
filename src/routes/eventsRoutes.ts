@@ -50,6 +50,7 @@ router.get("/:eventId/registrations", eventsController.getEventRegistrations);
 router.get("/:eventId/feedback", eventsController.getEventFeedback);
 router.get("/:eventId/speakers", eventsController.getEventSpeakers);
 router.get("/:eventId/room", eventsController.getEventRoom);
+router.get("/:eventId/attended", eventsController.getAttendedStudents); // Get attended students for certificate issuance
 router.get("/team/:teamId", eventsController.getTeamEvents);
 router.get("/events/upcoming", eventsController.getMyUpcomingRegisteredEvents);
 router.get("/events/attended", eventsController.getMyAttendedRegisteredEvents);

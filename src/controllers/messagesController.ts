@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import db from "../db/connection.ts";
-import { messages, users } from "../db/schema.ts";
-import { eq, and, or, desc, sql } from "drizzle-orm";
+import { messages, users, admins } from "../db/schema.ts";
+import { eq, and, or, desc, sql, isNotNull } from "drizzle-orm";
 
 export async function getNotifications(req: Request, res: Response) {
   // Get unread messages with user info and grouped by conversation
@@ -50,9 +50,11 @@ export async function getRecievedMessages(req: Request, res: Response) {
         lastMessage: messages.content,
         lastMessageTime: messages.sentAt,
         seen: messages.seen,
+        isAdmin: isNotNull(admins.id),
       })
       .from(messages)
       .innerJoin(users, eq(messages.senderId, users.id))
+      .leftJoin(admins, eq(users.id, admins.id))
       .where(eq(messages.receiverId, studentId))
       .orderBy(desc(messages.sentAt));
 
@@ -95,9 +97,11 @@ export async function getSentMessages(req: Request, res: Response) {
         lastMessage: messages.content,
         lastMessageTime: messages.sentAt,
         seen: messages.seen,
+        isAdmin: isNotNull(admins.id),
       })
       .from(messages)
       .innerJoin(users, eq(messages.receiverId, users.id))
+      .leftJoin(admins, eq(users.id, admins.id))
       .where(eq(messages.senderId, studentId))
       .orderBy(desc(messages.sentAt));
 
@@ -146,6 +150,21 @@ export async function sendMessage(
   } catch (error) {
     console.error("Error sending message:", error);
     res.status(500).json({ error: "Failed to send message" });
+  }
+}
+
+export async function markAllAsRead(req: Request, res: Response) {
+  try {
+    const studentId = (req as any).user.id;
+
+    await db.execute(sql`CALL mark_all_messages_as_read(${studentId})`);
+
+    return res.status(200).json({
+      message: "All messages marked as read",
+    });
+  } catch (error) {
+    console.error("Error marking messages as read:", error);
+    res.status(500).json({ error: "Failed to mark messages as read" });
   }
 }
 

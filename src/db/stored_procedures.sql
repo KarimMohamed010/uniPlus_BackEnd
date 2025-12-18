@@ -106,3 +106,61 @@ BEGIN
     ORDER BY report_count DESC, p.issued_at DESC;
 END;
 $$;
+
+CREATE OR REPLACE PROCEDURE mark_all_messages_as_read(p_user_id INT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE messages
+    SET seen = TRUE
+    WHERE receiver_id = p_user_id AND seen = FALSE;
+END;
+$$;
+
+
+CREATE OR REPLACE PROCEDURE get_all_speakers(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM speakers;
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE get_all_rooms(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM rooms;
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE transfer_leadership_before_deletion(p_old_leader_id INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    team_rec RECORD;
+    v_new_leader_id INT;
+BEGIN
+    FOR team_rec IN SELECT id FROM teams WHERE leader_id = p_old_leader_id LOOP
+        SELECT student_id INTO v_new_leader_id
+        FROM belong_to
+        WHERE team_id = team_rec.id AND role = 'organizer'
+        ORDER BY RANDOM()
+        LIMIT 1;
+
+        IF v_new_leader_id IS NOT NULL THEN
+            UPDATE teams SET leader_id = v_new_leader_id WHERE id = team_rec.id;
+        ELSE
+            UPDATE teams SET leader_id = NULL WHERE id = team_rec.id;
+        END IF;
+    END LOOP;
+END;
+$$;
+
+

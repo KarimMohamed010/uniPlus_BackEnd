@@ -57,7 +57,7 @@ const resend = new Resend(env.RESEND_API_KEY);
 
 export async function sendEmailVerificationCode(to: string, code: string) {
    await resend.emails.send({
-      from: 'onboarding@resend.dev',
+      from: 'no-reply@email.donenow.tech',
   to: to,
   subject: 'Verification Code',
   html: `<strong>Your verification code is ${code}. It expires in ${env.EMAIL_OTP_TTL_SECONDS} seconds.</strong>`,

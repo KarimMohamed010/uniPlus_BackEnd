@@ -1,7 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
-import { isTestEnv, env } from "../env.ts";
+import { isTestEnv, env } from "./env.ts";
 import authRoutes from "./routes/authRoutes.ts";
 import eventsRoutes from "./routes/eventsRoutes.ts";
 import postsRoutes from "./routes/postsRoutes.ts";
@@ -24,7 +24,12 @@ const app = express();
 
 app.use(
   cors({
-    origin: [env.FRONTEND_URL, "http://localhost:5173", "http://127.0.0.1:5173"],
+    origin: [
+      env.FRONTEND_URL,
+      "http://localhost:5173",
+      "http://localhost:4173",
+      "http://127.0.0.1:5173",
+    ],
     credentials: true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],

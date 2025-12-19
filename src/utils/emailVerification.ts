@@ -1,5 +1,10 @@
-import { createHash, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
-import env from "../../env.ts";
+import {
+  createHash,
+  randomInt,
+  randomUUID,
+  timingSafeEqual,
+} from "node:crypto";
+import env from "../env.ts";
 
 type VerificationRecord = {
   id: string;
@@ -110,7 +115,11 @@ export function verifyEmailCode(input: {
 
   const rec = recordsById.get(verificationId);
   if (!rec || rec.email !== email) {
-    return { ok: false as const, status: 400 as const, error: "Invalid verification" };
+    return {
+      ok: false as const,
+      status: 400 as const,
+      error: "Invalid verification",
+    };
   }
 
   const now = nowMs();
@@ -124,7 +133,11 @@ export function verifyEmailCode(input: {
 
   rec.attempts += 1;
   if (rec.attempts > 10) {
-    return { ok: false as const, status: 429 as const, error: "Too many attempts" };
+    return {
+      ok: false as const,
+      status: 429 as const,
+      error: "Too many attempts",
+    };
   }
 
   const provided = hashCode(code);
@@ -147,15 +160,27 @@ export function assertEmailVerifiedForSignup(input: {
 
   const rec = recordsById.get(verificationId);
   if (!rec || rec.email !== email) {
-    return { ok: false as const, status: 400 as const, error: "Email not verified" };
+    return {
+      ok: false as const,
+      status: 400 as const,
+      error: "Email not verified",
+    };
   }
 
   if (rec.expiresAtMs <= nowMs()) {
-    return { ok: false as const, status: 400 as const, error: "Verification expired" };
+    return {
+      ok: false as const,
+      status: 400 as const,
+      error: "Verification expired",
+    };
   }
 
   if (!rec.verifiedAtMs) {
-    return { ok: false as const, status: 400 as const, error: "Email not verified" };
+    return {
+      ok: false as const,
+      status: 400 as const,
+      error: "Email not verified",
+    };
   }
 
   return { ok: true as const };

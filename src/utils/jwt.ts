@@ -2,7 +2,7 @@ import { createSecretKey } from "node:crypto";
 import { SignJWT } from "jose";
 import { jwtVerify } from "jose";
 import type { JWTPayload } from "jose";
-import env from "../../env.ts";
+import env from "../env.ts";
 
 // type jwtPayLoad = JWTPayload & {
 //     username : string;

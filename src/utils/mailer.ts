@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import {env} from "../../env.ts"
+import { env } from "../env.ts";
 console.log("SMTP CHECK", {
   host: env.SMTP_HOST,
   port: env.SMTP_PORT,
@@ -19,7 +19,6 @@ function getTransporter() {
     SMTP_PASS: env.SMTP_PASS ? "SET" : "MISSING",
   });
   if (transporter) return transporter;
-
 
   if (!env.SMTP_HOST || !env.SMTP_PORT || !env.SMTP_USER || !env.SMTP_PASS) {
     throw new Error("SMTP is not configured");

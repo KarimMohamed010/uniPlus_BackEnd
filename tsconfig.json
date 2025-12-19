@@ -1,8 +1,10 @@
 {
   "compilerOptions": {
-    "noEmit": true,
+    // "noEmit": true,
     "target": "esnext",
     "module": "nodenext",
+    "outDir": "dist",
+    "rootDir": "src",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "rewriteRelativeImportExtensions": true,
@@ -11,5 +13,6 @@
     "allowImportingTsExtensions": true,
     "types": ["vitest/globals"],
     "skipLibCheck": true
-  }
+  },
+  "include": ["src"]
 }

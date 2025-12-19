@@ -1,7 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { Server as HTTPServer } from "http";
 import db from "../db/connection.ts";
-import env from "../../env.ts";
+import env from "../env.ts";
 import { messages, users } from "../db/schema.ts";
 import { eq, or, and, desc } from "drizzle-orm";
 import { verify } from "crypto";

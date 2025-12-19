@@ -27,7 +27,7 @@ const approveItemSchema = z.object({
 });
 
 // Schema for adding admin
-const addAdminSchema = signUpSchema;
+// const addAdminSchema = signUpSchema;
 
 // Schema for issuing warnings
 const issueWarningSchema = z.object({
@@ -67,7 +67,7 @@ const toggleUserStatusSchema = z.object({
 // );
 
 // 3. Add new admin
-router.post("/", validateBody(addAdminSchema), adminController.addAdmin);
+router.post("/", adminController.addAdmin);
 // add new speaker
 router.post("/speakers",validateBody(addSpeakerSchema),adminController.addSpeaker);
 // 4. Get all admins
